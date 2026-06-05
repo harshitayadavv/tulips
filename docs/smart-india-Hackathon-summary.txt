@@ -1,0 +1,21 @@
+At Smart India Hackathon 2025, our team built ZeroGrid, a renewable energy orchestration platform for government institutes in Rajasthan.
+The problem statement focused on the fact that many institutes already had renewable infrastructure like solar panels, batteries, and wind systems, but these systems operated independently without intelligent coordination. This caused inefficient energy usage, poor forecasting, and limited optimization.
+Our goal was to create a centralized orchestration platform that could:
+monitor renewable systems in real time
+forecast energy generation and load
+optimize battery usage
+provide AI-generated operational insights
+coordinate energy usage across multiple systems
+The platform combined:
+real-time monitoring dashboards
+WebSocket-based live updates
+forecasting systems
+optimization workflows
+AI-generated insights
+device integrations through MQTT/Modbus-style flows
+My role was mainly focused on the AI/ML and intelligence layer, and I was also leading the team.
+I worked around:
+forecasting workflows
+integrating prediction systems
+AI-generated insight pipelines
+connecting AI outputs with operational decisions

@@ -1,0 +1,495 @@
+# WarRoom — Complete Interview Preparation Guide
+
+---
+
+## 1. One-Line Summary
+
+WarRoom is a full-stack multi-agent AI debate platform where four specialized LLM agents debate any topic in real time, streaming token-by-token via WebSocket, with per-turn scoring, fallacy detection, vector-embedding consensus measurement, and time-travel forking across debate rounds.
+
+---
+
+## 2. Tech Stack — Every Layer
+
+### Frontend
+| Technology | Why |
+|---|---|
+| Next.js 14 (App Router) | SSR for landing page, clean routing for auth/debate/history |
+| TypeScript | Type safety across 10+ WebSocket event types |
+| Supabase Auth (client) | Session management, JWT tokens |
+| WebSocket (native browser) | Real-time bidirectional streaming |
+| Vercel | Deployment — native Next.js support |
+
+### Backend
+| Technology | Why |
+|---|---|
+| FastAPI | Async-first, native WebSocket, fast to prototype |
+| LangGraph | State machine with typed shared state, conditional routing, checkpointing |
+| Groq API (Llama 3.3 70B) | Fastest open-weight inference — sub-5s agent responses |
+| Supabase (PostgreSQL) | Debate persistence, auth, checkpoints |
+| Redis | External signaling layer for pause/resume/interrupt |
+| Render | Deployment — supports long-running async processes and WebSocket |
+
+### AI / ML
+| Technology | Why |
+|---|---|
+| Llama 3.3 70B (via Groq) | Main debate agents — best reasoning quality |
+| Llama 3.1 8B instant | Originally for scoring — faster, lower cost |
+| Gemma2-9b-it | Scoring model (separate quota from main agents) |
+| Vector embeddings | Cosine similarity consensus measurement |
+| Prompt engineering | Fallacy detection, role behavior, personal topic adaptation |
+
+---
+
+## 3. System Architecture
+
+```
+User Browser
+     │
+     ├── REST (POST /debates) ──────────────────────────┐
+     │                                                   │
+     └── WebSocket (/ws/debates/{id}) ──────────────┐   │
+                                                     │   │
+                                              FastAPI Backend
+                                                     │   │
+                              ┌──────────────────────┘   │
+                              │                           │
+                         WS Manager                  Router
+                         (debate_id → socket)         │
+                              │                      creates debate
+                              │                      starts background task
+                              │                           │
+                         emits events              LangGraph Graph
+                              │                           │
+                              └──────────────────── 7-node state machine
+                                                          │
+                                    ┌─────────────────────┼──────────────────┐
+                                    │                     │                  │
+                               Groq API              Supabase            Redis
+                               (streaming)           (persistence)       (control)
+```
+
+---
+
+## 4. LangGraph State Machine — All 7 Nodes
+
+```
+START
+  ↓
+round_start      ← increments round, emits round_started WS event
+  ↓
+proponent        ← AXIOM argues FOR
+  ↓
+opponent         ← REFUTE argues AGAINST
+  ↓
+fact_checker     ← VERITAS audits claims, detects fallacies
+  ↓
+moderator        ← ARBITER scores the round, emits turn_complete
+  ↓
+consensus        ← computes cosine similarity, decides should_end
+  ↓
+  ├── continue → round_start (loop)
+  └── end → judge → END
+```
+
+### Conditional Routing Logic
+```python
+def should_continue(state):
+    return "end" if state["should_end"] else "continue"
+
+# should_end = True when:
+# - consensus_score >= 0.85 (threshold)
+# - current_round >= max_rounds (default 5)
+```
+
+---
+
+## 5. DebateState — Full TypedDict
+
+```python
+class DebateState(TypedDict):
+    debate_id:       str        # UUID — keys Redis, WS registry, DB
+    debate:          dict       # full debate object (transcript, agents, config)
+    current_round:   int        # 1-indexed round counter
+    current_agent:   str        # for observability
+    last_pro_stance: str        # extracted stance summary from AXIOM
+    last_opp_stance: str        # extracted stance summary from REFUTE
+    consensus_score: float      # cosine similarity 0.0-1.0
+    should_end:      bool       # termination signal
+    interrupt_data:  dict|None  # human interrupt payload
+    # ws_callback INTENTIONALLY ABSENT — stored in module registry
+    # reason: functions are not msgpack-serializable
+```
+
+### Why ws_callback is NOT in state
+LangGraph's MemorySaver checkpointer serializes state to msgpack between nodes. Python functions/callables are not msgpack-serializable. Storing the WebSocket callback in state caused a silent crash after the first node — the graph died without error.
+
+**Fix:** Module-level registry
+```python
+_WS_CALLBACKS: dict[str, Any] = {}
+
+def register_ws_callback(debate_id, callback): ...
+def get_ws_callback(debate_id): ...
+def unregister_ws_callback(debate_id): ...
+```
+
+---
+
+## 6. Relational Database Schema (Supabase/PostgreSQL)
+
+### Table: debates
+```sql
+CREATE TABLE debates (
+    id                        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id                   UUID REFERENCES auth.users(id),
+    topic                     TEXT NOT NULL,
+    status                    TEXT NOT NULL,  -- initializing|running|paused|consensus_reached|max_rounds_reached|error
+    config                    JSONB NOT NULL, -- max_rounds, agents[], enable_web_search, consensus_threshold
+    current_round             INT DEFAULT 0,
+    consensus_score           FLOAT DEFAULT 0.0,
+    winner_role               TEXT,           -- proponent|opponent|null
+    summary                   TEXT,
+    tags                      TEXT[] DEFAULT '{}',
+    personal_context_detected BOOLEAN DEFAULT FALSE,
+    created_at                TIMESTAMPTZ DEFAULT NOW(),
+    updated_at                TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+### Table: turns
+```sql
+CREATE TABLE turns (
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    debate_id    UUID REFERENCES debates(id) ON DELETE CASCADE,
+    round        INT NOT NULL,
+    agent_role   TEXT NOT NULL,  -- proponent|opponent|fact_checker|moderator
+    agent_name   TEXT NOT NULL,  -- AXIOM|REFUTE|VERITAS|ARBITER
+    content      TEXT NOT NULL,
+    score        JSONB,          -- {logic_score, evidence_score, total_score, fallacies_detected[]}
+    tool_calls   JSONB DEFAULT '[]',
+    embedding    FLOAT[],        -- stance vector for consensus scoring
+    is_interrupt BOOLEAN DEFAULT FALSE,
+    created_at   TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+### Table: checkpoints
+```sql
+CREATE TABLE checkpoints (
+    id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    debate_id      UUID REFERENCES debates(id) ON DELETE CASCADE,
+    round          INT NOT NULL,
+    label          TEXT,         -- e.g. "Round 2 — 12%"
+    state_snapshot JSONB NOT NULL, -- full DebateState at that point
+    created_at     TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+### Table: verdicts
+```sql
+CREATE TABLE verdicts (
+    id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    debate_id             UUID REFERENCES debates(id),
+    winner                TEXT,
+    winner_name           TEXT,
+    summary               TEXT,
+    key_arguments         JSONB,
+    recommendation        TEXT,
+    consensus_reached     BOOLEAN,
+    final_consensus_score FLOAT,
+    total_fallacies       JSONB,  -- {proponent: N, opponent: N}
+    confidence_in_verdict INT,
+    total_rounds          INT,
+    created_at            TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+### Relationships
+```
+auth.users (Supabase)
+    │
+    └── debates (user_id FK)
+            │
+            ├── turns (debate_id FK)
+            ├── checkpoints (debate_id FK)
+            └── verdicts (debate_id FK)
+```
+
+---
+
+## 7. WebSocket Event Types — Complete List
+
+| Event | Direction | Payload |
+|---|---|---|
+| `ping` | server→client | `{keepalive: true}` |
+| `debate_started` | server→client | full debate object |
+| `round_started` | server→client | `{round: N}` |
+| `agent_thinking` | server→client | `{agentRole, thought, isStreaming}` |
+| `agent_speaking` | server→client | `{agentRole, content, isStreaming}` |
+| `agent_tool_call` | server→client | `{agentRole, tool, input, status}` |
+| `agent_tool_result` | server→client | `{agentRole, tool, status}` |
+| `turn_complete` | server→client | full DebateTurn with score |
+| `round_complete` | server→client | `{round: N}` |
+| `consensus_update` | server→client | `{score, delta, convergingAgents}` |
+| `debate_paused` | server→client | `{}` |
+| `debate_interrupted` | server→client | interrupt payload |
+| `verdict_ready` | server→client | JudgeVerdict object |
+| `debate_complete` | server→client | full debate object |
+| `error` | server→client | `{message}` |
+
+### camelCase Serialization
+Backend uses snake_case internally (Pydantic models). WS payloads are explicitly converted to camelCase for TypeScript frontend:
+```python
+def turn_to_ws(turn: DebateTurn) -> dict:
+    return {
+        "agentRole": turn.agent_role,
+        "debateId":  turn.debate_id,
+        "logicScore": turn.score.logic_score,
+        ...
+    }
+```
+
+---
+
+## 8. Four Agents — Roles and Prompting
+
+### AXIOM (Proponent)
+- **Role:** Argues strongly FOR the topic
+- **Temperature:** 0.7–0.8
+- **Temperament:** Analytical/Aggressive
+- **Prompt strategy:** Clear role definition, forced direct rebuttal of opponent's latest stance, given `last_opp_stance` as context
+
+### REFUTE (Opponent)
+- **Role:** Argues strongly AGAINST
+- **Temperature:** 0.8
+- **Temperament:** Aggressive
+- **Prompt strategy:** Instructed to attack assumptions, identify weak reasoning, introduce tradeoffs — NOT just negate. Given `last_pro_stance` as context
+
+### VERITAS (Fact-Checker)
+- **Role:** Neutral auditor
+- **Temperature:** 0.2–0.3
+- **Temperament:** Balanced/Analytical
+- **Focuses on:** Factual claims, measurable statements, causal claims, logical inconsistencies
+- **Ignores:** Purely subjective opinions
+- **Detection method:** LLM-based with structured prompting (not rule-based)
+
+### ARBITER (Moderator/Judge)
+- **Role:** Scores turns, delivers final verdict
+- **Temperature:** 0.3–0.4
+- **Temperament:** Diplomatic
+- **Outputs:** Logic score (0-100), Evidence score (0-100), Total score, Round summary, Consensus trajectory
+
+---
+
+## 9. The 10 Fallacy Types
+
+| # | Type | Description |
+|---|---|---|
+| 1 | Ad hominem | Attacking the person not the argument |
+| 2 | Straw man | Misrepresenting opponent's argument |
+| 3 | False dichotomy | Presenting only two options when more exist |
+| 4 | Appeal to authority | "Expert said so" without evidence |
+| 5 | Circular reasoning | Conclusion used as premise |
+| 6 | Slippery slope | X leads to Z with no evidence |
+| 7 | Hasty generalization | Broad conclusion from few examples |
+| 8 | Red herring | Irrelevant distraction |
+| 9 | False analogy | Comparing incompatible things |
+| 10 | Appeal to emotion | Fear/sympathy instead of logic |
+
+---
+
+## 10. Consensus Engine — How It Works
+
+```
+After each round:
+  1. extract_stance(proponent_content) → short stance summary
+  2. extract_stance(opponent_content)  → short stance summary
+  3. embed(pro_stance) → vector_A
+  4. embed(opp_stance) → vector_B
+  5. cosine_similarity(vector_A, vector_B) → score (0.0-1.0)
+  6. if score >= 0.85 OR round >= max_rounds → should_end = True
+```
+
+### Important Limitations
+- Consensus measures **semantic agreement**, not correctness
+- Two agents can converge on a wrong answer and trigger consensus
+- In practice, LLMs hold assigned positions strongly — most debates terminate via max_rounds, not genuine consensus
+- Default threshold: 0.85
+
+---
+
+## 11. Redis Usage — Keys and Patterns
+
+| Key pattern | Value | Purpose |
+|---|---|---|
+| `pause:{debate_id}` | `"true"` | Pause signal |
+| `interrupt:{debate_id}` | JSON string | Human interrupt data |
+| `approval:{debate_id}:{request_id}` | JSON string | Tool approval response |
+| `state:{debate_id}` | JSON string | Debate state cache |
+
+### Why Redis, Not LangGraph State
+- LangGraph state is only writable by graph nodes
+- FastAPI pause endpoint runs in a **separate async context** — cannot inject into running graph
+- Redis is external to graph — readable/writable from anywhere
+- Graph checks Redis flags at **node boundaries** (safe interrupt points)
+- In-memory fallback exists for single-instance deployment
+
+---
+
+## 12. Measured Performance Metrics
+
+From actual debate run (topic: "Social media does more harm than good"):
+
+| Metric | Value |
+|---|---|
+| Average agent response time | 1–5 seconds |
+| Average round duration | ~7 seconds |
+| Total 5-round debate duration | **47 seconds** |
+| Completion tokens per debate | ~7,150 |
+| Total tokens (prompt + completion) | ~21,000 |
+| Rounds completed | 5 |
+| Total agent turns | 20 |
+
+---
+
+## 13. The Hardest Bug — msgpack Serialization
+
+**Symptom:** All agent messages disappeared from screen after first agent spoke. Debate appeared to run but transcript was empty.
+
+**Root cause:** WebSocket callback function stored in LangGraph state → MemorySaver checkpointer tried to serialize state to msgpack → `TypeError: Type is not msgpack serializable: function` → graph crashed silently after first node.
+
+**Fix:** Remove callback from state entirely. Store in module-level dict:
+```python
+_WS_CALLBACKS: dict[str, Any] = {}
+# Nodes call get_ws_callback(debate_id) instead
+```
+
+**Lesson:** In distributed/orchestration systems, failures often happen in infrastructure you didn't write (checkpointer internals), far from your code. Separate serializable state from runtime infrastructure.
+
+---
+
+## 14. Time-Travel and Forking
+
+### How checkpointing works
+- LangGraph saves state after each node completes
+- Additionally, `consensus_node` explicitly saves to Supabase `checkpoints` table
+- Each checkpoint stores full `DebateState` snapshot + round number + label
+
+### Fork flow
+```
+GET /debates/{id}/checkpoints          → list available checkpoints
+POST /debates/{id}/checkpoints/{cp}/fork  → creates new debate from that state
+Response: { newDebateId: "xyz" }
+Navigate to /debate/xyz                → independent debate from that round
+```
+
+### What a fork preserves
+- Transcript up to that checkpoint
+- Agent scores up to that round
+- Round number (starts from checkpointed round, not round 1)
+- Optional: new topic via `new_topic` body param
+
+---
+
+## 15. REST API Endpoints
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| POST | `/debates` | Create debate, start LangGraph task |
+| GET | `/debates/{id}` | Get debate state |
+| GET | `/debates` | List user's debates (paginated) |
+| DELETE | `/debates/{id}` | Delete debate |
+| POST | `/debates/{id}/pause` | Set Redis pause flag |
+| POST | `/debates/{id}/resume` | Clear Redis pause flag |
+| POST | `/debates/{id}/interrupt` | Set Redis interrupt data |
+| POST | `/debates/{id}/force-consensus` | Force debate to end |
+| GET | `/debates/{id}/checkpoints` | List checkpoints |
+| POST | `/debates/{id}/checkpoints/{cp}/restore` | Restore from checkpoint |
+| POST | `/debates/{id}/checkpoints/{cp}/fork` | Fork new debate |
+| GET | `/health` | Health check |
+| WS | `/ws/debates/{id}` | WebSocket connection |
+
+---
+
+## 16. Context Window Strategy
+
+- Full transcript stored in Supabase (never lost)
+- Each agent receives: **last 6 turns** truncated to 400 chars each
+- Plus: system prompt + current topic + latest opponent stance
+- Total context per turn: ~2,400 chars history + system prompt
+- Prevents context bloat across long debates
+
+---
+
+## 17. Multi-User Isolation
+
+Every resource keyed by `debate_id`:
+- LangGraph state: `state["debate_id"]`
+- WebSocket: `manager.connections[debate_id]`
+- Redis: `pause:{debate_id}`, `interrupt:{debate_id}`
+- Database: `WHERE debate_id = ?`
+
+No shared global mutable state in orchestration layer. Two debates running simultaneously have zero shared state.
+
+---
+
+## 18. Personal Topic Detection
+
+System detects first-person decision topics:
+```python
+# Topics like "Should I quit my job?" vs "Is nuclear energy good?"
+is_personal = await detect_personal_topic(topic)
+```
+
+When personal = True:
+- Agents instructed to be more empathetic
+- Less aggressive debate tone
+- Focus on practical consequences and tradeoffs
+- ARBITER's verdict framed as personal recommendation
+
+---
+
+## 19. Current Limitations (Be Honest About These)
+
+| Limitation | Impact | Fix |
+|---|---|---|
+| Single Render instance | ~2-3 concurrent debates before Groq rate limits | Worker queue + multiple instances |
+| No mid-token replay | Missed tokens if WS drops during streaming | Kafka event log |
+| Manual error recovery | Failed debate requires manual fork/restore | Auto-retry with exponential backoff |
+| Consensus rarely triggered | LLMs hold positions — max_rounds terminates most debates | Better stance extraction |
+| Embeddings all zeros | Groq embed_text not returning values correctly | Fix embedding model call |
+| Scoring defaults to 65 | Rate limits on scoring model cause fallback scores | Paid tier or better retry logic |
+
+---
+
+## 20. Potential Improvements (For Interview)
+
+### Short term
+- Node-level retry with exponential backoff for Groq failures
+- Redis TTL on pause keys to prevent orphaned flags
+- JWT validation on WebSocket handshake
+
+### Medium term
+- Kafka for durable event log → debate replay feature
+- Separate WebSocket gateway from LangGraph workers
+- Fix embedding pipeline → real consensus scoring
+
+### Long term
+- Kubernetes deployment with horizontal pod autoscaling
+- Fine-tuned scoring model using ARBITER outputs as labels
+- Multi-modal — add voice input, generate audio of debate
+- RAG-based fact checking with verified source database
+
+---
+
+## 21. Key Architectural Decisions Summary
+
+| Decision | What | Why |
+|---|---|---|
+| LangGraph over sequential chain | State machine | Needed conditional routing, checkpointing, pause/resume |
+| Redis over LangGraph state for pause | External signal | HTTP layer can't write to running graph mid-node |
+| WebSocket over SSE | Bidirectional | Needed pause/interrupt signals from client to server |
+| Groq over OpenAI | Speed | Sub-5s agent responses — Groq inference is 10x faster |
+| Module registry for WS callbacks | Not in state | Functions not msgpack-serializable |
+| camelCase WS payloads | Explicit conversion | TypeScript frontend uses camelCase, Pydantic uses snake_case |
+| 6-turn context window | Not full transcript | Token efficiency, response focus |
+| Separate scoring model | Different quota | Scoring on same model as agents caused rate limit collisions |

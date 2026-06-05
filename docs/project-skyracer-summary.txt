@@ -1,0 +1,563 @@
+# SkyRacer — Complete Interview Summary
+
+---
+
+## WHAT IT IS
+
+A full-stack real-time web game where you control an airplane using hand gestures (camera swipes) or voice commands to dodge obstacles. Built to demonstrate AI/ML integration in a production web app.
+
+**Live:** https://sky-racer.vercel.app | API: https://skyracer.onrender.com/docs
+
+---
+
+## TECH STACK (with reasons)
+
+### Frontend
+| Tech | Why |
+|------|-----|
+| React + Vite | Component model for game UI, Vite for fast builds |
+| Tailwind CSS | Rapid styling, no custom CSS files |
+| Canvas API | Game rendering — lightweight, no game engine needed |
+| MediaPipe Tasks Vision | Hand landmark detection, runs in browser via WASM + WebGL |
+| Web Speech API | Browser-native voice recognition, Chrome only |
+| WebSocket API | Persistent connection for real-time game state |
+
+### Backend
+| Tech | Why |
+|------|-----|
+| FastAPI | Async native, WebSocket first-class, auto docs at /docs |
+| Motor | Async MongoDB driver — sync driver would block event loop |
+| MongoDB Atlas | Document model fits nested user stats, flexible schema |
+| python-jose | JWT encode/decode |
+| passlib + bcrypt==4.0.1 | Password hashing, pinned version (newer broke passlib) |
+| google-auth | Verify Google OAuth tokens server-side |
+
+### Infrastructure
+| Tech | Why |
+|------|-----|
+| Vercel | Frontend hosting, free, auto-deploys from GitHub |
+| Render | Backend hosting, free tier (512MB RAM, 0.1 CPU) |
+| MongoDB Atlas | Free M0 tier (512MB storage) |
+| Docker + docker-compose | Local development with both services |
+| GitHub | Source control, triggers auto-deploy on push |
+
+---
+
+## SYSTEM ARCHITECTURE
+
+```
+┌─────────────────────────────────────────┐
+│              BROWSER                     │
+│                                          │
+│  ┌──────────┐    ┌────────────────────┐  │
+│  │  React   │    │ MediaPipe (WASM)   │  │
+│  │  Canvas  │    │ Hand detection     │  │
+│  │  (Game   │    │ 60fps, GPU/WebGL   │  │
+│  │  render) │    │ landmark 9 tracked │  │
+│  └──────────┘    └────────────────────┘  │
+│       │                   │              │
+│  setGameState()    swipe direction       │
+│       │            (40 bytes)            │
+└───────┼────────────────┼─────────────────┘
+        │                │ WebSocket
+        │         ┌──────▼────────────────┐
+        │         │   FastAPI (Render)    │
+        │         │                       │
+        │         │  gesture_websocket.py │
+        │         │  → gesture_game.py    │
+        │         │    airplane.x -= 25   │
+        │         │    collision check    │
+        │         │    score += 10        │
+        │         │                       │
+        │         │  30fps game loop      │
+        │         │  sends state back     │
+        │         └──────────┬────────────┘
+        │                    │
+        │              ┌─────▼──────┐
+        └─── REST ────►│  MongoDB   │
+           (score,      │  Atlas     │
+            auth,       │            │
+            stats)      │  users{}   │
+                        └────────────┘
+```
+
+---
+
+## DATA FLOW — ONE FRAME OF GAMEPLAY
+
+### Gesture Game (full journey)
+```
+1. Camera captures frame (640×480, 30fps)
+   └── stays in browser, NEVER transmitted
+
+2. MediaPipe processes frame (~10-15ms, GPU)
+   └── returns 21 (x,y,z) landmarks
+
+3. Extract landmark 9 (palm center, most stable)
+   └── push (nx, ny) into sliding window [8 frames]
+
+4. Compute velocity:
+   dx = newest_x - oldest_x
+   dy = newest_y - oldest_y
+
+5. Direction classification:
+   if abs(dx) >= abs(dy) AND abs(dx) > 0.09:
+     gesture = dx > 0 ? 'left' : 'right'  (flipped: video mirrored)
+   if abs(dy) > abs(dx) AND abs(dy) > 0.09:
+     gesture = dy > 0 ? 'down' : 'up'
+
+6. WebSocket send: {"type":"gesture","direction":"left"} (~40 bytes)
+   └── ~100ms network to Render
+
+7. FastAPI receives → gesture_game.py:
+   airplane.x = max(20, airplane.x - 25)
+
+8. Game loop (30fps) sends state back:
+   {"airplane":{"x":75,"y":250},"obstacles":[...],"score":0}
+   └── ~100ms network back
+
+9. React setGameState() → Canvas redraws
+   └── ~5ms
+
+TOTAL: ~215ms (dominated by two ~100ms network hops)
+```
+
+### Voice Game (different path)
+```
+1. Mic captures audio continuously
+2. Web Speech API sends to Google servers (~200-400ms)
+3. Returns transcript: "left"
+4. Browser matches against ["up","down","left","right"]
+5. setGameState() updates airplane.x directly in React
+   └── NO WebSocket involved in movement
+6. Canvas redraws immediately (~5ms)
+7. Score sent to backend via REST only at game end
+
+TOTAL MOVEMENT LATENCY: ~200-400ms (Google STT dominates)
+```
+
+---
+
+## DATABASE SCHEMA
+
+### MongoDB User Document
+```json
+{
+  "_id": "ObjectId('64a7f2b3c4e5d6f7a8b9c0d1')",
+  "email": "harshita@example.com",
+  "full_name": "Harshita Yadav",
+  "hashed_password": "$2b$12$abc...xyz",
+  "google_id": "117234567890123456789",
+  "created_at": "2024-11-25T10:30:00Z",
+  "stats": {
+    "voice": {
+      "games_played": 12,
+      "high_score": 340,
+      "total_score": 2100,
+      "wins": 3
+    },
+    "gesture": {
+      "games_played": 8,
+      "high_score": 180,
+      "total_score": 890,
+      "wins": 1
+    }
+  },
+  "achievements": [
+    "sky_racer",
+    "high_scorer",
+    "voice_master",
+    "first_flight"
+  ]
+}
+```
+
+### If This Were PostgreSQL (relational equivalent)
+
+```sql
+-- Users table
+CREATE TABLE users (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email       VARCHAR(255) UNIQUE NOT NULL,
+  full_name   VARCHAR(255),
+  hashed_password VARCHAR(255),
+  google_id   VARCHAR(255) UNIQUE,
+  created_at  TIMESTAMP DEFAULT NOW()
+);
+
+-- Game stats table
+CREATE TABLE game_stats (
+  id           UUID PRIMARY KEY,
+  user_id      UUID REFERENCES users(id) ON DELETE CASCADE,
+  game_type    VARCHAR(10) CHECK (game_type IN ('voice','gesture')),
+  games_played INT DEFAULT 0,
+  high_score   INT DEFAULT 0,
+  total_score  INT DEFAULT 0,
+  wins         INT DEFAULT 0,
+  UNIQUE(user_id, game_type)
+);
+
+-- Achievements table
+CREATE TABLE achievements (
+  id             UUID PRIMARY KEY,
+  user_id        UUID REFERENCES users(id) ON DELETE CASCADE,
+  achievement_id VARCHAR(50),
+  earned_at      TIMESTAMP DEFAULT NOW(),
+  UNIQUE(user_id, achievement_id)
+);
+
+-- Score history (not in current app but good addition)
+CREATE TABLE score_history (
+  id         UUID PRIMARY KEY,
+  user_id    UUID REFERENCES users(id),
+  game_type  VARCHAR(10),
+  score      INT,
+  played_at  TIMESTAMP DEFAULT NOW()
+);
+```
+
+**Why MongoDB was chosen over PostgreSQL:**
+- User document with nested stats is a natural document — no joins needed to get everything
+- Schema flexibility — adding new achievement types doesn't need ALTER TABLE
+- Motor async driver integrates cleanly with FastAPI
+- Atlas free tier easy to set up for a portfolio project
+
+**Why PostgreSQL would be better at scale:**
+- ACID transactions (score + achievement write atomically)
+- Complex leaderboard queries are much easier in SQL
+- Better tooling and wider team familiarity
+- Stronger consistency guarantees
+
+---
+
+## API ENDPOINTS
+
+### Auth
+```
+POST /auth/signup     → create account, return JWT
+POST /auth/login      → verify password, return JWT
+POST /auth/google     → verify Google token, upsert user, return JWT
+GET  /auth/me         → return current user from JWT
+```
+
+### Games
+```
+POST /games/gesture/session  → create session_id, return WebSocket URL
+WS   /ws/gesture/{session_id} → real-time game (gesture commands + state)
+WS   /ws/voice/{session_id}   → real-time game (voice game loop)
+POST /games/score             → submit score, check achievements
+GET  /games/stats             → get user stats + achievements
+```
+
+### Health
+```
+GET  /                → {"status": "ok"}
+GET  /docs            → auto-generated Swagger UI
+```
+
+---
+
+## AUTHENTICATION FLOW
+
+```
+SIGNUP/LOGIN:
+  POST /auth/signup {email, password, full_name}
+  → bcrypt.hash(password, rounds=12)
+  → store in MongoDB
+  → return JWT
+
+JWT PAYLOAD:
+  {
+    "sub": "64a7f2b3c4e5d6f7a8b9c0d1",  ← MongoDB user _id
+    "exp": 1735689600,                    ← 7 days from now
+    "iat": 1735084800                     ← issued at
+  }
+
+SIGNED WITH: HS256 + SECRET_KEY (env variable, never committed)
+
+CLIENT STORAGE: localStorage.setItem('auth_token', token)
+
+EVERY REQUEST: Authorization: Bearer <token>
+
+GOOGLE OAUTH:
+  1. Google Sign-In button → Google returns credential (Google's JWT)
+  2. POST /auth/google {token: "<google_jwt>"}
+  3. google-auth library verifies with Google's public keys
+  4. Extract {email, name, google_id}
+  5. MongoDB upsert (create if new user, find if existing)
+  6. Return our own JWT
+
+REVOCATION: Not implemented.
+  JWT valid until expiry regardless of logout.
+  Logout = delete from localStorage only.
+  Stolen token = valid for up to 7 days.
+```
+
+---
+
+## WEBSOCKET PROTOCOL
+
+### Gesture Game Messages
+
+**Client → Server:**
+```json
+{"type": "start"}
+{"type": "gesture", "direction": "left"}
+{"type": "restart"}
+```
+
+**Server → Client:**
+```json
+{"type": "game_started", "state": {...}}
+{"type": "game_state", "state": {
+  "airplane": {"x": 75, "y": 250, "width": 80, "height": 35},
+  "obstacles": [
+    {"id": 0.847, "x": 650, "y": 180, "width": 50, "height": 40,
+     "speed": 3.5, "type": "bird"}
+  ],
+  "score": 30,
+  "gameOver": false,
+  "gameStarted": true,
+  "gameSpeed": 1.0
+}}
+{"type": "game_restarted", "state": {...}}
+```
+
+---
+
+## GAME ENGINE LOGIC
+
+```python
+class GestureGameEngine:
+    CANVAS_W = 800
+    CANVAS_H = 500
+
+    def update(self):  # called every 33ms (30fps)
+        # 1. SPAWN: if time elapsed > spawn_interval
+        #    random type: bird/cloud/thunder/ufo
+        #    random y: 60 to canvas_height-140
+        #    x: canvas_width + 20 (just off right edge)
+
+        # 2. MOVE: each obstacle.x -= speed * game_speed
+
+        # 3. COLLISION: AABB with 15px padding (forgiveness)
+        #    airplane shrunk by 15px on all sides
+        #    if overlap → gameOver = True
+
+        # 4. SCORE: obstacle off left edge → score += 10
+        #    every 100 points: game_speed += 0.1
+        #                      spawn_interval -= 0.1s
+        #    max speed: 2.0x, min interval: 1.0s
+
+    def process_gesture_command(self, direction):
+        if direction == "up":
+            airplane.y = max(30, airplane.y - 25)
+        if direction == "down":
+            airplane.y = min(canvas_h - height - 30, airplane.y + 25)
+        if direction == "left":
+            airplane.x = max(20, airplane.x - 25)
+        if direction == "right":
+            airplane.x = min(canvas_w - width - 20, airplane.x + 25)
+```
+
+**Obstacle types:**
+
+| Type | Width | Height | Visual |
+|------|-------|--------|--------|
+| bird | 50px | 40px | Flapping wings animation |
+| cloud | 60px | 40px | Grey arc blobs |
+| thunder | 30px | 70px | Yellow lightning bolt |
+| ufo | 50px | 40px | Purple saucer + dome |
+
+---
+
+## MEDIAPIPE DETAILS
+
+### 21 Hand Landmarks
+```
+0  = Wrist
+1-4  = Thumb  (CMC, MCP, IP, TIP)
+5-8  = Index  (MCP, PIP, DIP, TIP)
+9-12 = Middle (MCP, PIP, DIP, TIP)  ← landmark 9 used
+13-16 = Ring  (MCP, PIP, DIP, TIP)
+17-20 = Pinky (MCP, PIP, DIP, TIP)
+```
+
+**Why landmark 9 (middle finger MCP):**
+- Most stable point on the hand
+- Doesn't move when fingers curl/extend
+- Stays in frame (fingertips and wrist often cut off)
+- True palm center — represents whole hand position
+
+### Swipe Detection Algorithm
+```javascript
+const WINDOW_SIZE = 8;    // ~133ms at 60fps
+const MIN_DISP = 0.09;    // 9% of frame width/height
+const COOLDOWN_MS = 400;  // between gestures
+
+// Every frame:
+positions.push({x: palm.x, y: palm.y, t: nowMs});
+if (positions.length > WINDOW_SIZE) positions.shift();
+if (positions.length < 4) return;
+
+const dx = positions[last].x - positions[0].x;
+const dy = positions[last].y - positions[0].y;
+
+// Dominant axis classification
+if (abs(dx) >= abs(dy) && abs(dx) > MIN_DISP):
+  gesture = dx > 0 ? 'left' : 'right'  // flipped for mirror
+if (abs(dy) > abs(dx) && abs(dy) > MIN_DISP):
+  gesture = dy > 0 ? 'down' : 'up'
+
+// After firing:
+positions = []      // clear window
+lastFiredAt = nowMs // start cooldown
+```
+
+### MediaPipe Performance
+| Device | Inference time | FPS |
+|--------|---------------|-----|
+| Modern laptop (GPU) | 10-15ms | 60fps |
+| Average laptop | 20-40ms | 30fps |
+| Mid-range phone | 40-80ms | 15fps |
+| Low-end (CPU only) | 80-150ms | 8fps |
+
+---
+
+## SCORE PERSISTENCE (MongoDB atomic operations)
+
+```python
+# On game end:
+await db.users.update_one(
+    {"_id": user_id},
+    {
+        "$inc": {
+            f"stats.{game_type}.games_played": 1,
+            f"stats.{game_type}.total_score": score
+        },
+        "$max": {
+            f"stats.{game_type}.high_score": score
+            # $max is ATOMIC — only updates if new > existing
+            # No race condition possible
+        },
+        "$push": {
+            "achievements": {"$each": newly_earned_achievements}
+        }
+    }
+)
+```
+
+---
+
+## ACHIEVEMENTS
+
+| ID | Condition |
+|----|-----------|
+| sky_racer | Play first game (any mode) |
+| first_flight | Complete first search |
+| high_scorer | Any score ≥ 100 |
+| pro_pilot | Any score ≥ 500 |
+| voice_master | 5 wins in voice mode |
+| gesture_pro | 5 wins in gesture mode |
+| voice_legend | Voice score ≥ 1000 |
+| gesture_legend | Gesture score ≥ 1000 |
+
+---
+
+## KEY PERFORMANCE METRICS
+
+| Metric | Value |
+|--------|-------|
+| Gesture-to-plane latency | ~200-300ms |
+| Voice-to-plane latency | ~200-400ms |
+| MediaPipe inference | ~10-15ms |
+| WebSocket message (gesture) | ~40 bytes |
+| Raw video frame | ~15-30KB |
+| Bandwidth reduction | ~10,000x |
+| Game loop speed | 30fps (33ms) |
+| JWT expiry | 7 days |
+| Swipe threshold | 0.09 (9% of frame) |
+| Window size | 8 frames |
+| Cooldown | 400ms |
+| Render free tier RAM | 512MB |
+| Render free tier CPU | 0.1 cores |
+| Max concurrent players | ~50 (free tier) |
+| Backend cold start | ~60 seconds |
+
+---
+
+## ALL BUGS FIXED
+
+| Bug | Root Cause | Fix |
+|-----|-----------|-----|
+| Gesture detected face | HSV skin detection too broad | Moved to MediaPipe neural network |
+| Frame diff ghost blobs | Diff shows change pixels not position | Moved to MOG2 then MediaPipe |
+| Optical flow hung server | Blocking CV in async event loop | ThreadPoolExecutor, then moved to browser |
+| Left/right reversed | Video mirrored, landmarks not | Flipped dx comparison |
+| Voice stopped after 5 min | Stale closure in onend handler | Added listeningRef mirror |
+| email-validator missing | Not in requirements.txt | Added pydantic[email] + email-validator |
+| bcrypt password error | bcrypt 4.1+ broke passlib | Pinned bcrypt==4.0.1 |
+| mediapipe.python missing | MediaPipe 0.10 removed solutions API | Moved to browser entirely |
+| Google origin_mismatch | Vercel URL not in Google Console | Added sky-racer.vercel.app to OAuth origins |
+| Google auth 500 error | google-auth packages missing | Added to requirements.txt |
+| .vscode on GitHub | Already tracked before gitignore | git rm --cached -r .vscode |
+| CORS errors post-deploy | Vercel URL not in allow_origins | Added to FastAPI CORS config |
+| Score lost on disconnect | State in memory only | Known gap, not yet fixed |
+| Multiple gestures one swipe | No debounce | Window clear + 400ms cooldown |
+
+---
+
+## KNOWN PRODUCTION GAPS
+
+| Gap | Impact | Fix |
+|-----|--------|-----|
+| Score lost on disconnect | High — player loses progress | Save to DB periodically or on close |
+| Fakeable voice score | Medium — leaderboard integrity | Server-side voice game loop |
+| No JWT revocation | Medium — stolen token = 7 days valid | Redis blacklist or short expiry + refresh |
+| No rate limiting | Medium — brute force login | fastapi-limiter middleware |
+| No error monitoring | High — silent failures | Sentry integration |
+| Cold start 60s | High — bad first impression | UptimeRobot ping every 10min |
+| Web Speech privacy | Medium — no user disclosure | Add privacy notice |
+| No horizontal scaling | High — ~50 concurrent max | Move game loop to frontend |
+| State lost on restart | High — all sessions wiped on deploy | Redis session store |
+
+---
+
+## WHAT INTERVIEWERS WILL LIKELY ASK
+
+**Architecture:**
+- Why browser not server for MediaPipe → latency, bandwidth, RAM
+- Why FastAPI not Django/Node → async native, Python ML ecosystem
+- What needs the backend → auth, persistence, game loop authority
+- How does the game loop work → 30fps asyncio, sends state via WebSocket
+
+**MediaPipe:**
+- How swipe detection works → sliding window velocity, landmark 9
+- Why landmark 9 → most stable, never cut off
+- How debouncing works → window clear + 400ms cooldown
+- What if hand leaves frame → empty landmarks array, window cleared
+
+**WebSockets:**
+- Why not REST → bidirectional, no polling overhead, server can push
+- What happens on disconnect → score lost (known gap)
+- What happens on restart → all sessions lost (known gap)
+
+**Auth:**
+- JWT payload contents → sub (user_id), exp, iat
+- Where stored → localStorage
+- How revoked → it can't be (known gap)
+- Google OAuth flow → Google token → backend verifies → our JWT
+
+**Database:**
+- Why MongoDB → document fits user profile, flexible schema
+- Race condition on score → $max atomic operator prevents it
+- Relational equivalent → users + game_stats + achievements tables
+
+**Scaling:**
+- First bottleneck → backend RAM (game loops in memory)
+- Fix → move game loop to frontend, stateless backend
+- 10K players → horizontal scaling, Redis sessions, separate game servers
+
+**Hardest problem:**
+- Voice recognition stopping → stale closure bug, fixed with listeningRef
+- Gesture detection evolution → 4 approaches before MediaPipe in browser
