@@ -14,8 +14,7 @@ Built for the Scaler AI Engineer Screening Assignment.
 | 💬 Chat UI          | https://tulips-rho.vercel.app    |
 | 🔧 Backend API      | https://tulips-s84n.onrender.com |
 | 📅 Book a Call      | https://cal.com/harshita-pgiap0  |
-| 🎥 Loom Walkthrough | [ADD_LOOM_LINK]                  |
-
+                 
 ### 📞 How to Call the Voice Agent
 
 The voice agent is live at **+1 (254) 261-0169** and is powered by Vapi.ai.
@@ -395,12 +394,6 @@ Configured build-time environment variables in Vercel.
 3. Sentiment-aware tone adaptation
 4. Shared streaming infrastructure across voice and chat
 5. Advanced reranking for retrieval quality
-
----
-
-# 🎥 Loom Walkthrough
-
-Add Loom recording link here before submission.
 
 ---
 
