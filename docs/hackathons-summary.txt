@@ -1,3 +1,19 @@
+ZEROGRID TECH STACK (Smart India Hackathon 2025):
+- Frontend: React.js with real-time dashboards
+- Backend: Node.js / FastAPI
+- Real-time: WebSockets for live energy monitoring
+- Device Integration: MQTT/Modbus-style flows
+- AI/ML: Forecasting models, predictive pipelines, AI-generated insight generation
+- Data: Energy monitoring across solar, wind, battery, grid systems
+
+SKYLINK TECH STACK (Innerve 9.0 Hackathon):
+- Frontend: React.js
+- Backend: Node.js / Express.js
+- Real-time: Supabase Realtime (online), WebRTC (offline peer-to-peer)
+- AI/ML: PyTorch, BERT-based text classification for content moderation
+- Chatbot: Gemini API
+- Privacy: Nickname-based access
+
 Hackathons / Competitions + Detailed Follow-up Answers
 I’ve actively participated in hackathons because I enjoy building under pressure.  Two of the most impactful experiences for me were Innerve 9.0 and Smart India Hackathon 2025, where I was also leading the team.
 At Innerve 9.0, our project was Skylink, a real-time in-flight communication system designed to improve passenger interaction before, during, and after flights. The platform included real-time chatrooms, AI-powered moderation, offline peer-to-peer messaging, and live flight updates.
@@ -66,19 +82,3 @@ AI-generated insight pipelines
 connecting AI outputs with operational decisions
 
 
-Skylink — Tech Stack:
-Frontend: React.js
-Backend: Node.js / Express.js
-Real-time: Supabase Realtime (online), WebRTC (offline peer-to-peer)
-AI/ML: PyTorch, BERT-based text classification for content moderation
-Chatbot: Gemini API
-Privacy: Nickname-based access (no personal data exposed)
-Deployment: Hackathon demo environment
-
-ZeroGrid — Tech Stack:
-Frontend: React.js with real-time dashboards
-Backend: Node.js / FastAPI
-Real-time: WebSockets for live energy monitoring updates
-Device Integration: MQTT/Modbus-style flows
-AI/ML: Forecasting models, predictive pipelines, AI-generated insight generation
-Data: Energy monitoring across solar, wind, battery, grid systems
