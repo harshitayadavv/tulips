@@ -1,0 +1,155 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-display: 'Cormorant Garamond', serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-sans: 'Plus Jakarta Sans', sans-serif;
+
+  --tulip-pink:    #e8607a;
+  --tulip-rose:    #c94468;
+  --tulip-petal:   #f2a0b0;
+  --tulip-blush:   #fce8ed;
+  --stem-green:    #2a4a3e;
+  --leaf-green:    #3d6b58;
+  --moss:          #1e3530;
+  --deep-night:    #0d1a16;
+  --terminal-gold: #d4a853;
+  --pollen:        #f0c060;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background-color: var(--deep-night);
+  color: #e8f0eb;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(232,96,122,0.25); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(232,96,122,0.5); }
+
+::selection { background: rgba(232,96,122,0.2); color: #fff; }
+
+/* Petal SVG background pattern */
+.petal-bg {
+  background-color: var(--deep-night);
+  background-image:
+    radial-gradient(ellipse 80px 120px at 15% 20%, rgba(232,96,122,0.06) 0%, transparent 60%),
+    radial-gradient(ellipse 60px 90px at 85% 70%, rgba(61,107,88,0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 40px 60px at 50% 90%, rgba(212,168,83,0.04) 0%, transparent 50%);
+}
+
+/* Decorative petal shapes */
+.petal-accent::before {
+  content: '';
+  position: absolute;
+  width: 180px;
+  height: 260px;
+  border-radius: 50% 10% 50% 10%;
+  background: radial-gradient(ellipse at 40% 40%, rgba(232,96,122,0.06), transparent 70%);
+  pointer-events: none;
+  transform: rotate(-30deg);
+}
+
+/* Animations */
+@keyframes petalDrift {
+  0%   { transform: translateY(0px) rotate(0deg); opacity: 0.6; }
+  50%  { transform: translateY(-8px) rotate(3deg); opacity: 1; }
+  100% { transform: translateY(0px) rotate(0deg); opacity: 0.6; }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes messageIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes typingPulse {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.35; }
+  40%            { transform: scale(1);   opacity: 1;    }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+@keyframes stemGrow {
+  from { transform: scaleY(0); opacity: 0; }
+  to   { transform: scaleY(1); opacity: 1; }
+}
+@keyframes pollenFloat {
+  0%,100% { transform: translateY(0) scale(1); opacity: 0.7; }
+  50%      { transform: translateY(-4px) scale(1.1); opacity: 1; }
+}
+@keyframes glowBreath {
+  0%,100% { box-shadow: 0 0 12px rgba(232,96,122,0.15); }
+  50%      { box-shadow: 0 0 24px rgba(232,96,122,0.3), 0 0 48px rgba(232,96,122,0.08); }
+}
+
+.animate-fade-in    { animation: fadeIn 0.4s ease forwards; }
+.animate-slide-up   { animation: slideUp 0.4s cubic-bezier(0.16,1,0.3,1) forwards; }
+.animate-petal      { animation: petalDrift 4s ease-in-out infinite; }
+.animate-pollen     { animation: pollenFloat 3s ease-in-out infinite; }
+.animate-glow-breath{ animation: glowBreath 3s ease-in-out infinite; }
+.message-enter      { animation: messageIn 0.3s cubic-bezier(0.16,1,0.3,1) forwards; }
+
+/* Organic border — petal-curve radius combo */
+.petal-card {
+  border-radius: 4px 20px 4px 20px;
+}
+.petal-card-sm {
+  border-radius: 3px 14px 3px 14px;
+}
+
+/* Botanical divider line */
+.stem-line {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(61,107,88,0.4), rgba(232,96,122,0.2), transparent);
+}
+
+/* Warning — warm amber pollen tone */
+.warning-banner {
+  background: linear-gradient(135deg, rgba(212,168,83,0.08), rgba(240,192,96,0.04));
+  border: 1px solid rgba(212,168,83,0.22);
+}
+
+/* Gradient border utility */
+.gradient-border {
+  position: relative;
+}
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(232,96,122,0.4), rgba(61,107,88,0.25), transparent 60%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Focus rings */
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 1.5px solid rgba(232,96,122,0.5);
+  outline-offset: 2px;
+}
+input, textarea { outline: none; }
