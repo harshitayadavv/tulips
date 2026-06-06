@@ -196,19 +196,25 @@ async def _handle_get_slots(client: httpx.AsyncClient) -> str:
 async def _handle_get_answer(client: httpx.AsyncClient, params: dict) -> str:
     question = params.get("question", "").strip()
     if not question:
-        return "Could you repeat the question? I didn't catch that."
+        return "Could you repeat that please?"
     try:
         resp = await client.post(
             f"{RENDER_URL}/chat",
             json={"message": question},
-            timeout=12.0,
+            timeout=8.0,  # ← reduced so Vapi doesn't retry
         )
         resp.raise_for_status()
         answer = resp.json().get("response", "")
-        return answer or "I don't have that information right now — happy to discuss it on a call!"
-    except Exception:
-        return "Something went wrong on my end. Feel free to ask again!"
-
+        if not answer:
+            return "I don't have that detail right now."
+        # Truncate for voice — max 200 chars
+        if len(answer) > 300:
+            answer = answer[:300].rsplit(" ", 1)[0] + "."
+        return answer
+    except httpx.TimeoutException:
+        return "I'm having trouble fetching that right now. Could you ask again?"
+    except Exception as e:
+        return "I don't have that detail right now. Want me to book a call with Harshita?"
 
 async def _handle_book_meeting(client: httpx.AsyncClient, params: dict) -> str:
     caller_name  = params.get("caller_name", "").strip()
