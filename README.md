@@ -1,212 +1,153 @@
-# 🌷 Tulips
+# 🌷 Tulips — Harshita's AI Persona
 
-> An AI-powered voice and chat persona that answers recruiter questions, discusses candidate experience and projects, and autonomously schedules interviews using real calendar availability.
+> An AI-powered voice + chat agent that represents Harshita Yadav, answers questions about her background, and books interviews — fully autonomous, no human in the loop.
 
 Built for the Scaler AI Engineer Screening Assignment.
 
 ---
 
-## Overview
+# 🔗 Live Links
 
-Tulips is an end-to-end AI persona system designed to simulate a candidate representative. Recruiters can interact with the persona via voice or chat, ask detailed questions about skills, projects, achievements, and experience, and directly schedule interviews without any human intervention.
+| Service             | Link                             |
+| ------------------- | -------------------------------- |
+| 📞 Voice Agent      | +1 (254) 261-0169                |
+| 💬 Chat UI          | https://tulips-rho.vercel.app    |
+| 🔧 Backend API      | https://tulips-s84n.onrender.com |
+| 📅 Book a Call      | https://cal.com/harshita-pgiap0  |
+| 🎥 Loom Walkthrough | [ADD_LOOM_LINK]                  |
 
-The system uses Retrieval-Augmented Generation (RAG) over a candidate's resume, GitHub repositories, project documentation, and supporting materials. This ensures responses remain grounded, factual, and resistant to hallucination.
+### 📞 How to Call the Voice Agent
 
-### Key Features
+The voice agent is live at **+1 (254) 261-0169** and is powered by Vapi.ai.
 
-* 🎙️ Real-time voice conversations
-* 💬 Public chat interface
-* 📚 RAG-grounded responses
-* 🔍 Resume and GitHub aware
-* 📅 Autonomous interview scheduling
-* 🛡️ Prompt injection resistance
-* ⚡ Low-latency inference
-* 🔄 Shared knowledge base across voice and chat
+You can call it by:
+
+* Directly dialing +1 (254) 261-0169
+* Dialing internationally from India using +1-254-261-0169
+* Using Skype or Google Voice
+* Triggering a test call directly from the Vapi dashboard
+
+The agent can:
+
+* Introduce itself as Tulips, Harshita's AI representative
+* Answer questions about experience, projects, and technical skills
+* Retrieve information from the knowledge base
+* Check calendar availability
+* Schedule confirmed interview slots
 
 ---
 
-## System Architecture
+# 🎯 Design Goals
+
+Tulips was built around four core principles:
+
+1. **Groundedness** — Responses should come from retrieved candidate information rather than model assumptions.
+2. **Honesty** — The agent should acknowledge uncertainty instead of hallucinating.
+3. **Low Latency** — Voice conversations should feel natural and responsive.
+4. **Autonomous Scheduling** — Recruiters should be able to complete interview booking without human intervention.
+
+---
+
+# 🏗️ Architecture
 
 ```text
-Resume PDF + GitHub READMEs + Project Docs
-                    │
-                    ▼
-        Gemini Embeddings (Free)
-                    │
-                    ▼
-          Qdrant Cloud Vector DB
-                    │
-                    ▼
-           Retrieval Pipeline
-                    │
-                    ▼
-        Groq Llama 3.3 70B Model
-                    │
-      ┌─────────────┴─────────────┐
-      ▼                           ▼
-  Chat Interface             Voice Agent
- (Next.js/Vercel)           (Vapi + Groq)
-      │                           │
-      └─────────────┬─────────────┘
-                    ▼
-            Calendar Booking
-               (Cal.com)
+Resume PDF + GitHub READMEs
+          ↓
+Gemini Embeddings (text-embedding-004)
+          ↓
+Qdrant Cloud Vector Database
+          ↓
+Groq Llama 3.3 70B
+          ↓
+┌─────────────────┬──────────────────┐
+│    Chat UI      │   Voice Agent    │
+│ Next.js/Vercel  │   Vapi + Groq    │
+│ /chat/stream    │ Deepgram STT/TTS │
+└─────────────────┴──────────────────┘
+          ↓                  ↓
+     Cal.com Calendar Booking
 ```
 
 ---
 
-## Live Links
+# 💰 Cost Breakdown
 
-| Service              | URL                        |
-| -------------------- | -------------------------- |
-| 📞 Voice Agent       | `[YOUR_VAPI_PHONE_NUMBER]` |
-| 💬 Chat UI           | `[YOUR_VERCEL_URL]`        |
-| 🔧 Backend API       | `[YOUR_RENDER_URL]`        |
-| 📂 GitHub Repository | `[YOUR_GITHUB_REPO]`       |
+| Layer          | Tool                         | Cost       |
+| -------------- | ---------------------------- | ---------- |
+| LLM            | Groq llama-3.3-70b-versatile | Free       |
+| Embeddings     | Gemini text-embedding-004    | Free       |
+| Vector DB      | Qdrant Cloud                 | Free       |
+| Voice Platform | Vapi.ai                      | ~$0.08/min |
+| STT            | Deepgram Flux                | Included   |
+| TTS            | Deepgram Aura Asteria        | Included   |
+| Backend        | FastAPI on Render            | Free       |
+| Frontend       | Next.js on Vercel            | Free       |
+| Calendar       | Cal.com                      | Free       |
 
----
+**Estimated voice cost:** ~$0.08/min
 
-## Tech Stack
-
-| Layer           | Technology                     | Cost         |
-| --------------- | ------------------------------ | ------------ |
-| LLM             | Groq `llama-3.3-70b-versatile` | Free         |
-| Embeddings      | Gemini `text-embedding-004`    | Free         |
-| Vector Database | Qdrant Cloud                   | Free         |
-| Backend         | FastAPI                        | Free         |
-| Frontend        | Next.js + Vercel               | Free         |
-| Voice Agent     | Vapi.ai                        | Free Credits |
-| Speech-to-Text  | Deepgram                       | Included     |
-| Calendar        | Cal.com                        | Free         |
-| Hosting         | Render                         | Free         |
-
-### Estimated Cost
-
-| Resource       | Cost        |
-| -------------- | ----------- |
-| Voice Call     | ~$0.05–0.10 |
-| Chat Session   | ~$0.00      |
-| Embeddings     | Free        |
-| Vector Storage | Free        |
+**Estimated chat cost:** Within free-tier limits
 
 ---
 
-## Project Structure
+# 📁 Project Structure
 
 ```text
-TULIPS/
-│
+tulips/
 ├── docs/
-│   ├── resume.pdf
-│   ├── github_readmes/
-│   └── project_docs/
+│   ├── harshitayadavv211.pdf
+│   ├── project-warroom-summary.txt
+│   ├── project-skyracer-summary.txt
+│   ├── project-wordsmith-summary.txt
+│   ├── internship-udchalo-summary.txt
+│   ├── hackathons-summary.txt
+│   └── smart-india-hackathon-summary.txt
 │
 ├── frontend/
 │   ├── app/
+│   │   ├── globals.css
+│   │   ├── layout.tsx
+│   │   └── page.tsx
+│   │
 │   ├── components/
 │   │   ├── ChatWindow.tsx
-│   │   ├── BookingModal.tsx
-│   │   └── MessageBubble.tsx
+│   │   └── BookingModal.tsx
+│   │
 │   ├── package.json
+│   ├── tailwind.config.js
 │   └── vercel.json
 │
 ├── main.py
 ├── ingest.py
-├── rag.py
-├── calendar_service.py
 ├── persona_prompt.py
 ├── requirements.txt
 ├── Procfile
-└── README.md
+└── .env.example
 ```
 
 ---
 
-## Core Components
+# 🛠️ Tech Stack
 
-### RAG Pipeline
-
-The retrieval layer powers both chat and voice experiences.
-
-#### Sources
-
-* Resume PDF
-* GitHub README files
-* Project documentation
-* Additional candidate context
-
-#### Flow
-
-```text
-User Question
-      │
-      ▼
-Embedding Generation
-      │
-      ▼
-Qdrant Similarity Search
-      │
-      ▼
-Top-K Context Retrieval
-      │
-      ▼
-Groq LLM Response
-```
+| Layer           | Tool                      |
+| --------------- | ------------------------- |
+| LLM             | Groq Llama 3.3 70B        |
+| Embeddings      | Gemini text-embedding-004 |
+| Vector Database | Qdrant Cloud              |
+| Voice Platform  | Vapi                      |
+| Speech-to-Text  | Deepgram Flux             |
+| Text-to-Speech  | Deepgram Aura             |
+| Backend         | FastAPI                   |
+| Frontend        | Next.js 14                |
+| Styling         | Tailwind CSS              |
+| Calendar        | Cal.com                   |
+| Hosting         | Render + Vercel           |
 
 ---
 
-### Chat Interface
+# ⚙️ Setup Instructions
 
-Features:
-
-* Streaming responses
-* Mobile responsive UI
-* Source-grounded answers
-* Interview scheduling support
-
-Built with:
-
-* Next.js
-* TypeScript
-* Tailwind CSS
-
----
-
-### Voice Agent
-
-Features:
-
-* Natural conversation flow
-* Handles interruptions
-* Supports follow-up questions
-* Dynamic slot booking
-* Real-time tool calling
-
-Built with:
-
-* Vapi
-* Deepgram
-* Groq
-
----
-
-### Calendar Booking
-
-The booking system:
-
-1. Fetches available slots
-2. Presents options
-3. Confirms selection
-4. Creates interview event
-5. Returns confirmation
-
-No manual intervention required.
-
----
-
-## Setup Instructions
-
-### Prerequisites
+## Prerequisites
 
 * Python 3.11+
 * Node.js 18+
@@ -215,24 +156,24 @@ No manual intervention required.
 * Qdrant Cloud Account
 * Vapi Account
 * Cal.com Account
-* Render Account
-* Vercel Account
 
 ---
 
-### Clone Repository
+## Clone Repository
 
 ```bash
-git clone https://github.com/[YOUR_GITHUB]/tulips.git
+git clone https://github.com/harshitayadavv/tulips.git
 cd tulips
 ```
 
 ---
 
-### Backend Setup
+## Backend Setup
 
 ```bash
-py -3.11 -m venv venv
+python -m venv venv
+
+# Windows
 venv\Scripts\activate
 
 pip install -r requirements.txt
@@ -240,12 +181,14 @@ pip install -r requirements.txt
 
 ---
 
-### Environment Variables
+## Environment Variables
 
-Create a `.env` file:
+Create `.env`
 
 ```env
 GROQ_API_KEY=
+
+GROQ_API_KEY_2=
 
 GEMINI_API_KEY=
 
@@ -258,18 +201,7 @@ CALCOM_USERNAME=
 
 ---
 
-### Document Ingestion
-
-Place the following files inside `docs/`:
-
-```text
-docs/
-├── resume.pdf
-├── github_readmes/
-└── project_docs/
-```
-
-Run:
+## Ingest Documents
 
 ```bash
 python ingest.py
@@ -277,13 +209,13 @@ python ingest.py
 
 ---
 
-### Run Backend
+## Run Backend
 
 ```bash
 uvicorn main:app --reload
 ```
 
-Available at:
+Backend:
 
 ```text
 http://localhost:8000
@@ -297,7 +229,7 @@ http://localhost:8000/docs
 
 ---
 
-### Run Frontend
+## Run Frontend
 
 ```bash
 cd frontend
@@ -315,9 +247,9 @@ http://localhost:3000
 
 ---
 
-## Deployment
+# 🚀 Deployment
 
-### Backend → Render
+## Backend → Render
 
 Build Command:
 
@@ -331,70 +263,72 @@ Start Command:
 uvicorn main:app --host 0.0.0.0 --port $PORT
 ```
 
+Add all environment variables through the Render dashboard.
+
 ---
 
-### Frontend → Vercel
+## Frontend → Vercel
 
-```bash
-vercel --prod
+Root Directory:
+
+```text
+frontend
 ```
 
 Environment Variable:
 
 ```env
-NEXT_PUBLIC_BACKEND_URL=https://your-backend.onrender.com
+NEXT_PUBLIC_BACKEND_URL=https://tulips-s84n.onrender.com
 ```
 
 ---
 
-### Voice Agent → Vapi
+## Voice Agent → Vapi
 
-Configure:
+Configuration:
 
-* Assistant Prompt
-* Tool Definitions
-* Booking Functions
-* Webhook URL
+* Model: llama-3.3-70b-versatile
+* STT: Deepgram Flux
+* TTS: Deepgram Aura Asteria
+* Webhook:
 
 ```text
-https://your-backend.onrender.com/vapi-webhook
+https://tulips-s84n.onrender.com/vapi-webhook
+```
+
+* Phone Number:
+
+```text
++1 (254) 261-0169
 ```
 
 ---
 
-## API Endpoints
+# 📡 API Endpoints
 
-| Method | Endpoint        | Description                        |
-| ------ | --------------- | ---------------------------------- |
-| POST   | `/chat`         | RAG-grounded chat response         |
-| GET    | `/slots`        | Retrieve available interview slots |
-| POST   | `/book`         | Create booking                     |
-| POST   | `/vapi-webhook` | Handle Vapi tool calls             |
-| GET    | `/ping`         | Health check                       |
-
----
-
-## Example Evaluations
-
-| Test               | Expected Behaviour             |
-| ------------------ | ------------------------------ |
-| Resume Question    | Accurate grounded answer       |
-| GitHub Question    | Repo-specific response         |
-| Follow-up Question | Maintains context              |
-| Prompt Injection   | Refuses manipulation           |
-| Interview Booking  | Successfully schedules meeting |
+| Method | Endpoint      | Description           |
+| ------ | ------------- | --------------------- |
+| GET    | /health       | Health check          |
+| GET    | /ping         | Keep-alive endpoint   |
+| POST   | /chat         | Standard RAG chat     |
+| POST   | /chat/stream  | Streaming SSE chat    |
+| GET    | /slots        | Calendar availability |
+| POST   | /book         | Interview booking     |
+| POST   | /vapi-webhook | Voice tool execution  |
 
 ---
 
-## Evals Summary
+# 📊 Evaluation Summary
 
-| Metric                       | Result |
-| ---------------------------- | ------ |
-| Hallucination Rate           | [X]%   |
-| Retrieval Precision          | [X]%   |
-| Retrieval Recall             | [X]%   |
-| Voice First Response Latency | [X] ms |
-| Booking Success Rate         | [X]/5  |
+| Metric                       | Result   |
+| ---------------------------- | -------- |
+| Voice First Response Latency | ~1050 ms |
+| Tool Call Latency            | ~2.9 s   |
+| Transcription Accuracy       | ~94%     |
+| Booking Success Rate         | 5/5      |
+| Chat Pass Rate               | 9/10     |
+| Hallucination Rate           | 10% → 0% |
+| Prompt Injection Protection  | 5/5      |
 
 Full details available in:
 
@@ -404,80 +338,84 @@ evals_report.pdf
 
 ---
 
-## Failure Modes Discovered
+# 🐛 Key Failure Modes & Fixes
 
-### 1. Hallucinated Repository Information
+### 1. Groq Rate Limits
 
-**Root Cause**
+**Issue**
 
-Insufficient retrieved context.
-
-**Fix**
-
-Increased retrieval depth and added reranking.
-
----
-
-### 2. Prompt Injection Attempts
-
-**Root Cause**
-
-User instructions conflicting with system instructions.
+100k TPD limit exceeded.
 
 **Fix**
 
-Added strict grounding and instruction hierarchy.
+Added multi-key fallback routing.
 
 ---
 
-### 3. Booking Errors
+### 2. Cal.com API Deprecation
 
-**Root Cause**
+**Issue**
 
-Invalid slot formatting from external calendar APIs.
+Legacy v1 endpoints returned 410 errors.
 
 **Fix**
 
-Added slot validation and fallback handling.
+Migrated to Cal.com v2 endpoints and updated authentication flow.
 
 ---
 
-## Tradeoff Chosen
+### 3. Render Cold Starts
 
-### Cost vs Latency
+**Issue**
 
-I chose Groq's hosted inference over larger proprietary models because it provided significantly lower latency while maintaining sufficient response quality for recruiter-facing conversations.
+First request latency reached 30–50 seconds.
 
-This improved voice responsiveness and reduced operational costs.
+**Fix**
 
----
-
-## What I'd Build With 2 More Weeks
-
-* Redis-based cross-session memory
-* Automated GitHub synchronization
-* Multilingual voice support
-* Analytics dashboard
-* Advanced retrieval reranking
-* Resume version tracking
-* Recruiter interaction analytics
+Added UptimeRobot keep-alive pings against `/ping`.
 
 ---
 
-## Loom Walkthrough
+### 4. Frontend Environment Variables
 
-🎥 [YOUR_LOOM_URL]
+**Issue**
+
+Backend URL was unavailable after deployment.
+
+**Fix**
+
+Configured build-time environment variables in Vercel.
 
 ---
 
-## Author
+# 🔮 What I'd Build With 2 More Weeks
+
+1. Redis-backed conversation memory
+2. Automatic GitHub repository synchronization
+3. Sentiment-aware tone adaptation
+4. Shared streaming infrastructure across voice and chat
+5. Advanced reranking for retrieval quality
+
+---
+
+# 🎥 Loom Walkthrough
+
+Add Loom recording link here before submission.
+
+---
+
+# 👩‍💻 Built By
 
 **Harshita Yadav**
 
-Built for the Scaler AI Engineer Screening Assignment.
+Email: [harshitayadavv211@gmail.com](mailto:harshitayadavv211@gmail.com)
 
-📧 [harshitayadavv211@gmail.com](mailto:harshitayadavv211@gmail.com)
+GitHub: https://github.com/harshitayadavv
+
+LinkedIn: https://www.linkedin.com/in/harshita-yadav-6b287b296
 
 ---
 
-Built with FastAPI, Groq, Gemini, Qdrant, Vapi, Next.js, and Cal.com.
+Keep all services active for at least 7 days after submission.
+
+Scaler reviewers may interact with both the voice and chat interfaces without prior notice.
