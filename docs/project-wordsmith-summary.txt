@@ -1,320 +1,82 @@
-# WordSmith — Complete Interview Summary
-
----
-
-## One Line Description
-AI-powered Chrome extension that transforms text using LLMs with 8 modes, multi-select chaining, history tracking, and favorites — built with React, FastAPI, SQLite, and Groq API.
-
----
-
-## What It Does
-- Paste text → select transformation → get AI-rewritten text in under 2 seconds
-- 8 transformation modes — Grammar Fix, Formal, Friendly, Shorten, Expand, Bullet Points, Emoji, Tweetify
-- Chain multiple transforms sequentially — Grammar → Formal → Shorten applied one after another
-- 28 valid multi-select combinations with automatic conflict detection
-- 7-day auto-expiring history, permanent favorites system
-- Works as both Chrome extension and standalone web app
-
----
-
-## Tech Stack — One Line Each
-
-| Technology | Why |
-|---|---|
-| React.js | Complex UI state — conflict detection, loading states, tabs |
-| Chrome Manifest V3 | Current standard, V2 deprecated by Google |
-| FastAPI | Async-native, perfect for I/O-bound Groq API calls |
-| SQLAlchemy | Database abstraction — SQLite now, PostgreSQL later, same code |
-| SQLite | Zero infrastructure for MVP, simple file-based storage |
-| Groq API | Fastest LLM inference available, cheaper than OpenAI |
-| Llama 3.1 8B | Fast, cheap, good enough for transformation tasks |
-| Render | Backend hosting, free tier |
-| Vercel | Frontend hosting, free tier, global CDN |
-
----
-
-## System Architecture
-
-```
-Chrome Extension (React popup)
-         ↓
-     api.js (fetch calls)
-         ↓
-FastAPI Backend on Render
-    ↓           ↓
- Cache        Groq API
- (memory)   (Llama 3.1)
-    ↓           ↓
-      SQLite Database
-```
-
-**Request flow:**
-1. User selects transform in popup
-2. Frontend calls POST /api/v1/transform
-3. Backend validates input
-4. Checks in-memory cache — hit = return instantly
-5. Miss = call Groq API with crafted prompt
-6. Save result to SQLite
-7. Return response to frontend
-
----
-
-## Relational Schema
-
-**Single table — `transformation_history`**
-
-| Column | Type | Description |
-|---|---|---|
-| id | String(36) UUID | Primary key |
-| user_id | String(100) | Identifies user, indexed |
-| original_text | Text | True original before any chaining |
-| transformed_text | Text | Final output |
-| transformation_type | String(50) | Which transform was applied, indexed |
-| additional_instructions | Text | Optional user custom instructions |
-| processing_time | Float | Groq response time in seconds |
-| word_count_original | Integer | Word count before transform |
-| word_count_transformed | Integer | Word count after transform |
-| is_saved | Boolean | False = expires, True = permanent |
-| created_at | DateTime | Used for 7-day retention filter, indexed |
-| updated_at | DateTime | Auto-updates on change |
-
-**Indexes on** — user_id, transformation_type, is_saved, created_at
-
-**No foreign keys** — single table design, no relationships
-
-**7-day retention logic** — every history query filters `created_at >= now - 7 days`
-
-**Favorites logic** — `is_saved = True` exempts record from cleanup, persists forever
-
----
-
-## API Endpoints
-
-| Method | Endpoint | What It Does |
-|---|---|---|
-| POST | /api/v1/transform | Main transform endpoint |
-| POST | /api/v1/batch-transform | Transform multiple texts at once |
-| GET | /api/v1/history | Get user's 7-day history |
-| POST | /api/v1/history/save | Mark item as favorite |
-| DELETE | /api/v1/history | Delete specific history items |
-| DELETE | /api/v1/history/cleanup | Wipe all expired history |
-| GET | /api/v1/transformations | List all available transforms |
-| GET | /api/v1/health | Check API, DB, Groq status |
-| GET | /api/v1/cache/stats | Cache hit/miss stats |
-| DELETE | /api/v1/cache | Clear cache manually |
-
----
-
-## Transform Request Schema
-
-```
-POST /api/v1/transform
-{
-  text: string (1-5000 chars, required)
-  transformation_type: enum (required)
-  additional_instructions: string (optional, max 500)
-  user_id: string (optional, defaults to anonymous)
-  original_text: string (optional, used for chain tracking)
-}
-```
-
-**original_text field** — when chaining transforms, frontend passes the true original text so every DB record stores original vs final, not intermediate steps
-
----
-
-## Multi-Transform Chaining — How It Actually Works
-
-For Grammar + Formal + Shorten:
-- Call 1 — send original text → Grammar Fix → get result 1
-- Call 2 — send result 1 → Formal, pass original as original_text → get result 2
-- Call 3 — send result 2 → Shorten, pass original as original_text → get result 3
-- 3 DB records written, all showing true original vs their respective output
-- **Orchestration is on the frontend, backend is stateless**
-
----
-
-## Conflict Detection System
-
-**Categories:**
-- `tone` — Formal, Friendly
-- `length` — Shorten, Expand
-- `neutral` — Grammar, Bullet, Emoji, Tweetify
-
-**Rules:**
-- Two `tone` types conflict — can't select both Formal and Friendly
-- Two `length` types conflict — can't select both Shorten and Expand
-- `neutral` types never conflict — combine freely with anything
-
-**Lives entirely on frontend** — backend has no conflict awareness
-
-**Known gap** — semantic conflicts like Bullet + Tweetify not detected
-
----
-
-## Prompt Design
-
-Every transform has its own prompt template:
-- Variable 1 — `{text}` — the input text
-- Variable 2 — `{additional_instructions}` — user custom instructions
-- Every prompt ends with — "Return only the transformed text without any explanations or quotes"
-- Temperature 0.3 — consistent, deterministic, not creative
-- Max tokens 1000
-- Model — llama-3.1-8b-instant
-- No system message — everything in user message
-
-**Example — Formal prompt logic:**
-"Rewrite in formal professional tone. Return only the text, no explanations."
-
----
-
-## User Identity System
-
-```javascript
-userId = `user_${Date.now()}_${randomString}`
-stored in localStorage
-```
-
-- Generated once on first use
-- Sent with every API request
-- Backend uses it to filter history queries
-- **No verification** — backend trusts whatever user_id is sent
-
-**Problems:**
-- Clear localStorage = lose all history
-- New device = new identity = no history
-- Anyone knowing your ID can read your history
-- Can't do per-user rate limiting properly
-
-**Fix** — Google OAuth, one persistent identity everywhere
-
----
-
-## Caching System
-
-- In-memory Python dictionary on the server
-- Key = `(text, transformation_type, additional_instructions)`
-- TTL = 3600 seconds
-- Max size = 1000 entries
-- Cache hit returns `processing_time: 0.01`
-- Two users sending same text share the same cached result
-
-**Critical weakness** — wiped on every server restart, Render restarts frequently, real hit rate is very low in practice
-
-**Fix** — Redis, survives restarts, shared across multiple instances
-
----
-
-## Performance Numbers
-
-| Scenario | Latency |
-|---|---|
-| Single transform, warm server | 800ms — 1.8s |
-| Cold start on Render free tier | 30 — 60 seconds |
-| 3-transform chain, warm server | 3 — 5 seconds |
-| Cache hit | ~10ms |
-
-**How measured** — server-side `processing_time` field on every response + browser network tab
-
-**Resume claim "sub-2s"** — accurate for single transform on warm server only
-
----
-
-## What Breaks Under Load
-
-| Concurrent Users | What Happens |
-|---|---|
-| Up to 15 | Works fine |
-| 30+ | SQLite write contention, history writes slow |
-| 50+ | Groq rate limits hit, 429 errors on transforms |
-| 100+ | Memory pressure from cache, general degradation |
-
----
-
-## Security Gaps — Be Honest
-
-- **No authentication** — any endpoint callable by anyone
-- **CORS has wildcard** — any origin can call the API
-- **No rate limiting** — Groq budget fully exposed
-- **Prompt injection possible** — additional_instructions unsanitized
-- **History unprotected** — know someone's user_id = read their history
-- **Cleanup endpoint open** — anyone can wipe all unsaved history
-
----
-
-## Known Technical Gaps
-
-- No output validation on LLM responses — garbage goes straight to user
-- Tweetify doesn't enforce 280 char limit post-generation
-- No retry logic — Groq failure = immediate error to user
-- SQLite on Render ephemeral filesystem — DB can be wiped on restart
-- No loading progress per transform in a chain — one spinner for everything
-- Conflict detection only on frontend — backend accepts any combination
-
----
-
-## Scaling Roadmap — In Priority Order
-
-1. **PostgreSQL** — concurrent writes, persistent storage, production-grade
-2. **Rate limiting** — slowapi on FastAPI, protect Groq budget
-3. **Redis cache** — survives restarts, shared across instances
-4. **Google OAuth** — real user identity, cross-device history
-5. **Warm server cron job** — ping every 10 min, eliminate cold starts
-6. **Horizontal scaling** — multiple FastAPI instances + load balancer
-7. **Request queue** — Celery/Redis Queue between API and Groq
-8. **Fallback LLM** — Together AI or Fireworks if Groq goes down
-9. **Monitoring** — p95 latency, Groq error rate, DB write failures
-
----
-
-## Deployment Architecture
-
-| Component | Platform | Notes |
-|---|---|---|
-| Backend API | Render free tier | Spins down after 15min idle |
-| Frontend web app | Vercel | Auto-deploy from GitHub |
-| Chrome extension | GitHub releases | Manual load unpacked |
-| Database | SQLite file on Render | Ephemeral, can be wiped |
-| HF Spaces | Hugging Face | Alternate backend deployment |
-
----
-
-## Chrome Extension Specifics
-
-**Manifest V3 key points:**
-- Background scripts are Service Workers — ephemeral, not persistent
-- Stricter CSP — no remotely hosted scripts, everything bundled
-- In-flight API calls die if service worker is killed
-- Extension popup is alive only while user has it open
-
-**What happens if popup closes mid-transform:**
-- Frontend fetch abandoned, React state gone
-- Backend continues processing, Groq call completes
-- Result saved to DB even though user never saw it
-- User finds it in history when they reopen
-
----
-
-## What Works Really Well
-
-- Groq inference is genuinely fast — sub-second on typical text
-- Multi-select UX with numbered badges showing order is clean
-- Original text preserved correctly across entire transform chain
-- Async FastAPI handles concurrent I/O efficiently
-- SQLAlchemy makes DB migration path clean
-- Cache key design correctly shares results between users safely
-
----
-
-## Resume Bullets Explained
-
-**"8 transformation modes and 28 multi-select combinations"**
-8 individual transforms, conflict rules reduce valid combinations from theoretical maximum to 28 safe ones.
-
-**"Llama 3.1 via Groq API achieving less than 2s response latency"**
-Measured server-side on every request, accurate for single transforms on warm server.
-
-**"Conflict detection"**
-Frontend category system — tone vs tone and length vs length blocked, neutral transforms combine freely.
-
-**"7-day history tracking and favorites using SQLite with persistent user storage"**
-History filtered by created_at, favorites flagged with is_saved boolean, "persistent" is honest for favorites but limited for history given localStorage identity gap.
+PROJECT: WordSmith
+GitHub: https://github.com/harshitayadavv/WordSmith
+Live Web App: https://word-smith-sand.vercel.app
+Backend API: https://wordsmith-backend-iatg.onrender.com
+
+WHAT IT IS:
+WordSmith is an AI-powered Chrome extension and web app that transforms text using Groq's Llama 3.1 model. Users paste text, select one or more transformation modes, and get rewritten text in under 2 seconds. Supports chaining multiple transformations sequentially with automatic conflict detection.
+
+8 TRANSFORMATION MODES:
+Grammar Fix, Formal Tone, Friendly Tone, Shorten, Expand, Bullet Points, Add Emojis, Tweetify
+
+MULTI-SELECT CHAINING:
+Apply up to 8 transforms in sequence. Conflict rules: two "tone" types conflict (Formal + Friendly blocked), two "length" types conflict (Shorten + Expand blocked), "neutral" types (Grammar, Bullet, Emoji, Tweetify) combine freely with anything. 28 valid combinations total.
+
+How chaining works: for Grammar + Formal + Shorten:
+- Call 1: original text → Grammar Fix → result 1
+- Call 2: result 1 → Formal (original_text param preserves true original) → result 2
+- Call 3: result 2 → Shorten (original_text param preserved) → result 3
+- 3 DB records written, each shows true original vs its output
+- Orchestration is on the frontend, backend is stateless
+
+TECH STACK:
+Frontend: React.js, Vite, Chrome Manifest V3 (extension)
+Backend: FastAPI, SQLAlchemy ORM, SQLite
+AI: Groq API, Llama 3.1 8B instant
+Deployment: Vercel (frontend), Render (backend)
+
+WHY EACH TECH:
+- Groq over OpenAI: fastest LLM inference available, cheaper, generous free tier
+- Llama 3.1 8B over 70B: fast and cheap enough for transformation tasks, sub-2s on warm server
+- SQLite over PostgreSQL: zero infrastructure for MVP, SQLAlchemy abstraction means migration to PostgreSQL is same code
+- Chrome Manifest V3 over V2: current standard, V2 deprecated by Google — stricter CSP required bundling everything
+
+API ENDPOINTS:
+POST /api/v1/transform — main transform endpoint
+POST /api/v1/batch-transform — multiple texts at once
+GET /api/v1/history — 7-day history
+POST /api/v1/history/save — mark as favorite
+DELETE /api/v1/history — delete items
+GET /api/v1/transformations — list available transforms
+GET /api/v1/health — check API, DB, Groq status
+GET /api/v1/cache/stats — cache hit/miss stats
+
+DATABASE SCHEMA (single table — transformation_history):
+id (UUID), user_id (indexed), original_text, transformed_text, transformation_type (indexed), additional_instructions, processing_time, word_count_original, word_count_transformed, is_saved (boolean — True = permanent favorite), created_at (indexed for 7-day filter), updated_at
+
+7-day retention: every history query filters created_at >= now - 7 days
+Favorites: is_saved = True exempts record from cleanup permanently
+
+USER IDENTITY:
+Generated as user_{timestamp}_{randomString}, stored in localStorage, sent with every request. Backend trusts whatever user_id is sent.
+Known gaps: clear localStorage = lose history, new device = new identity, no cross-device sync, no rate limiting per user.
+
+CACHING:
+In-memory Python dict. Key = (text, transformation_type, additional_instructions). TTL = 3600s. Max 1000 entries. Two users sending same text share result. Critical weakness: wiped on every Render restart — real hit rate very low in practice. Fix would be Redis.
+
+PERFORMANCE:
+Single transform on warm server: 800ms-1.8s. Cold start on Render free: 30-60 seconds. 3-transform chain warm: 3-5 seconds. Cache hit: ~10ms.
+
+CHROME EXTENSION SPECIFICS (Manifest V3):
+Background scripts are Service Workers — ephemeral, not persistent. Stricter CSP — all scripts must be bundled, no remote scripts. If popup closes mid-transform: frontend fetch abandoned, but backend continues, result saved to DB. User finds it in history when they reopen.
+
+CONFLICT DETECTION:
+Lives entirely on frontend — backend has no conflict awareness. Known gap: semantic conflicts like Bullet + Tweetify not detected.
+
+DESIGN TRADEOFFS:
+- SQLite vs PostgreSQL: zero infrastructure for MVP, accepted write contention above 30 concurrent users
+- Frontend orchestration vs backend chaining: stateless backend is simpler and more scalable, trades extra API calls from client
+- In-memory cache vs Redis: zero setup, accepted cache loss on restart
+- Temperature 0.3: consistent and deterministic output, traded creativity for reliability
+
+KNOWN SECURITY GAPS:
+No authentication, CORS wildcard, no rate limiting (Groq budget fully exposed), prompt injection possible via additional_instructions field, history unprotected by user_id alone.
+
+WHAT HARSHITA WOULD DO DIFFERENTLY:
+- PostgreSQL for concurrent writes and persistent storage
+- Redis cache that survives restarts
+- Google OAuth for real cross-device user identity
+- Rate limiting with slowapi
+- Streaming responses so users see text transform in real time
+- Server-side conflict detection for robustness
+- Publish to Chrome Web Store

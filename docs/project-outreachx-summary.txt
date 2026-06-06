@@ -1,0 +1,12 @@
+PROJECT: OutreachX
+GitHub: https://github.com/harshitayadavv/OutreachX
+Language: Python
+
+WHAT IT IS:
+OutreachX is a Python-based project by Harshita Yadav, pinned on her GitHub profile. Given the name and Python stack, it is an AI-powered outreach automation tool — likely for automating personalized outreach messages or emails at scale.
+
+TECH STACK:
+- Primary language: Python
+- AI/automation focused
+
+NOTE: OutreachX is one of Harshita's pinned repositories demonstrating her Python and AI automation skills. For specific implementation details, Harshita would love to walk through it on a call.

@@ -1,39 +1,56 @@
-HARSHITA YADAV — GITHUB PROFILE SUMMARY
+HARSHITA YADAV — COMPLETE PROFILE
 GitHub: https://github.com/harshitayadavv
-Total Public Repositories: 28
+LinkedIn: https://linkedin.com/in/harshitayadav504
+Email: harshitayadav211@gmail.com
+Portfolio: https://harshitayadav-portfolio.vercel.app
 Location: Gurugram, India (studies at IIIT Kota)
 
-PINNED / KEY REPOSITORIES:
-1. Portfolio — JavaScript, personal portfolio at harshitayadav-portfolio.vercel.app
-2. WordSmith — Python + JavaScript, AI Chrome extension for text transformation
-3. warroom — TypeScript, full-stack application
-4. SkyRacer — JavaScript + Python, AI gesture/voice controlled game
-5. Return0 (Skylink) — JavaScript, real-time in-flight communication system (Innverve 9.0 hackathon)
-6. OutreachX — Python, AI outreach automation
-7. Tulips — Python + TypeScript, AI persona system (Scaler assignment — current project)
+EDUCATION:
+B.Tech in Electronics and Communication Engineering, IIIT Kota (2023-2027)
+Currently in 3rd year (pre-final year) as of 2025. Expected graduation: 2027.
 
-COMPETITIVE PROGRAMMING PROFILES:
-- LeetCode: leetcode.com/hersheyyys — 800+ problems solved
-- CodeChef: codechef.com/users/harshitaydv21
-- Codeforces: codeforces.com/profile/hersheyyys
+INTERNSHIP:
+Software Engineering Intern at udChalo (May 2025 - August 2025)
+React Native mobile development, production UI components, Android 15 migration research.
+App serves 1M+ users. Opportunity came from winning udChalo-sponsored hackathon at Innerve 9.0.
+
+COMPETITIVE PROGRAMMING:
+LeetCode: leetcode.com/hersheyyys — 800+ DSA problems solved
+CodeChef: codechef.com/users/harshitaydv21
+Codeforces: codeforces.com/profile/hersheyyys
+Primary language for CP: C++
+
+HACKATHON ACHIEVEMENTS:
+- Smart India Hackathon 2025 — Winner (ZeroGrid, renewable energy orchestration platform, team lead)
+- Innerve 9.0 by AIT Pune — Won sponsored problem statement by udChalo (Skylink, in-flight communication system, team lead + AI/ML)
+
+KEY PROJECTS (most impressive first):
+1. WarRoom — Multi-agent AI debate platform. LangGraph, Groq, FastAPI, Supabase, Redis, WebSocket streaming. Most technically complex project.
+2. Tulips — AI persona system (this project). RAG + voice agent + calendar booking. FastAPI, Groq, Gemini embeddings, Qdrant, Vapi.ai, Cal.com v2.
+3. SkyRacer — AI gesture/voice browser game. MediaPipe, React, FastAPI, WebSockets, MongoDB. Live at sky-racer.vercel.app
+4. WordSmith — AI Chrome extension for text transformation. React, FastAPI, Groq, SQLite. Live at word-smith-sand.vercel.app
+5. Skylink (Return0) — Real-time in-flight communication. React, Supabase, WebRTC, PyTorch/BERT moderation. Innerve 9.0 winner.
+6. ZeroGrid — Renewable energy orchestration platform. React, FastAPI, WebSockets, MQTT. SIH 2025 winner.
+7. OutreachX — Python AI automation tool.
+8. Portfolio — Personal portfolio at harshitayadav-portfolio.vercel.app
+
+WHY HARSHITA IS A STRONG FIT FOR AI ENGINEER ROLES:
+- Built a complete RAG pipeline from scratch (embed → vector search → LLM generation → streaming response)
+- Built a production voice agent with real-time tool calling (Vapi + Groq + Deepgram + Cal.com)
+- Built a multi-agent LangGraph orchestration system with state machines, checkpointing, and time-travel forking
+- Built AI-powered Chrome extensions and web apps with Groq inference
+- Shipped production code to 1M+ users at udChalo (React Native)
+- Won two hackathons as team lead, leading AI/ML development in both
+- Active competitive programmer with 800+ problems solved in C++
+- Currently learning Agentic AI and LangGraph
 
 FULL TECH STACK:
-Frontend: HTML, CSS, JavaScript, TypeScript, React.js, React Native, Next.js, Tailwind CSS, Vite, Chrome Extensions (Manifest V3)
+Languages: C++, Python, JavaScript, TypeScript
+Frontend: React.js, React Native, Next.js, Tailwind CSS, Vite, Canvas API, Chrome Extensions (Manifest V3)
 Backend: FastAPI, Flask, Express.js, Node.js, WebSockets
-Databases: MongoDB (Atlas), PostgreSQL, SQLite, Qdrant (vector DB)
-AI/ML: Python, PyTorch, Keras, TensorFlow, OpenCV, MediaPipe, Pandas, NumPy, Scikit-learn, Matplotlib, Seaborn
-AI Systems: LangGraph, RAG Systems, LLM Applications, AI Agents, Groq API, Gemini API, Qdrant
+Databases: MongoDB Atlas, PostgreSQL, SQLite, Qdrant (vector DB), Supabase, Redis
+AI/ML: PyTorch, Keras, TensorFlow, OpenCV, MediaPipe, Pandas, NumPy, Scikit-learn
+AI Systems: Groq API, Gemini API (embeddings), LangGraph, RAG pipelines, LLM applications, AI Agents, Vapi.ai, Deepgram
 DevOps: Docker, docker-compose, Git, Linux, Vercel, Render
-Other: JWT Auth, Google OAuth 2.0, REST APIs, WebSockets, System Design, OOP, DBMS, OS
-
-MOST RELEVANT TO SCALER AI ENGINEER ROLE:
-Harshita has built production AI systems including:
-- A full RAG pipeline (embed → vector search → LLM generation) for the Tulips persona project
-- An AI voice agent with real-time tool calling (Vapi + Groq + Deepgram + Cal.com)
-- An AI text transformation app (WordSmith — Groq + FastAPI + Chrome Extension)
-- An AI gesture/voice game (SkyRacer — MediaPipe + WebSockets + FastAPI)
-- LLM application development with streaming responses
-- Prompt injection detection and safety measures
-- Cal.com v2 API integration for autonomous calendar booking
-
-She is currently learning Agentic AI and LangGraph, making her directly relevant to Scaler's AI product work.
+Other: JWT Auth, Google OAuth 2.0, REST APIs, WebSockets, Cal.com v2, Supabase Auth, MQTT
+CS Fundamentals: Data Structures & Algorithms, OOP, DBMS, Operating Systems, System Design

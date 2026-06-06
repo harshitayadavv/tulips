@@ -14,71 +14,57 @@ SKYLINK TECH STACK (Innerve 9.0 Hackathon):
 - Chatbot: Gemini API
 - Privacy: Nickname-based access
 
-Hackathons / Competitions + Detailed Follow-up Answers
-I’ve actively participated in hackathons because I enjoy building under pressure.  Two of the most impactful experiences for me were Innerve 9.0 and Smart India Hackathon 2025, where I was also leading the team.
-At Innerve 9.0, our project was Skylink, a real-time in-flight communication system designed to improve passenger interaction before, during, and after flights. The platform included real-time chatrooms, AI-powered moderation, offline peer-to-peer messaging, and live flight updates.
-As team lead, I was mainly responsible for the AI/ML side of the project. I worked on the AI  pipeline using PyTorch and  BERT-based moderation logic  for detecting offensive or unsafe content in chats.
-The project ended up winning the sponsored problem statement by udChalo, which later led to my internship opportunity there.
-At Smart India Hackathon 2025, our project was ZeroGrid, a renewable energy orchestration platform for government institutes in Rajasthan. The system combined real-time energy monitoring, forecasting, AI-generated insights, and optimization across solar, wind, battery, and grid systems.
-Again, as team lead, my work was focused more on the AI/ML and intelligence layer of the platform. I worked around  AI-powered insights, and integrating predictive models into the orchestration workflow.Both hackathons pushed me to become more comfortable working under pressure, learning technologies quickly, coordinating teams, and building systems end-to-end within tight timelines.
-Follow-up: What was your exact contribution in Innerve?
-My contribution was mainly on the AI moderation side. I worked on integrating moderation logic using BERT/PyTorch-based approaches for detecting offensive content and unsafe interactions inside the flight chat system.
-I also worked closely with teammates to ensure the moderation pipeline integrated properly with the real-time messaging flow without introducing noticeable delays for users.
-Follow-up: What was your exact contribution in SIH?
-In SIH, my contribution was primarily around the AI/ML and intelligence layer of the system. I worked around forecasting logic, AI-generated insights, and integrating predictive workflows into the larger energy orchestration platform.
-I also contributed to thinking through how the AI recommendations would interact with operational decisions like battery scheduling and energy optimization instead of treating the ML system as an isolated module.
-Follow-up: What was the hardest technical challenge during these hackathons?
-One difficult challenge during Skylink was handling moderation in a real-time chat environment. If moderation becomes too slow, the chat experience feels delayed, but if moderation is too lightweight, unsafe messages can pass through.
-So we had to think carefully about balancing latency and moderation reliability instead of simply maximizing model complexity.
-In SIH, one difficult part was coordinating multiple moving pieces together — forecasting systems, real-time updates, WebSockets, dashboards, and optimization workflows — within a limited timeline.
-Follow-up: Tell me about a hackathon failure or mistake.
-One thing I learned early was that trying to overbuild features too quickly can create integration chaos later. In one phase of development, we underestimated how much time real-time integrations and debugging would take, especially when multiple teammates were working on interconnected systems simultaneously.
-That experience taught me the importance of stabilizing core workflows first before aggressively expanding features.
-Follow-up: How do you divide work as a team lead?
-I usually prefer dividing work based on ownership rather than isolated tasks. For example, instead of assigning random frontend pages separately, I prefer giving someone ownership of a complete workflow like authentication, real-time messaging, or AI integration.
-That approach reduces coordination confusion and makes debugging easier because responsibilities are clearer.
-Follow-up: What’s the fastest technology you’ve learned during a hackathon?
-Probably real-time communication workflows involving WebSockets and streaming systems. During these hackathons, we had to quickly understand how to handle live updates, async communication, and synchronization across multiple users and services within a very limited timeframe.
-Follow-up: How do you handle unclear requirements?
-I usually try to reduce ambiguity by building a minimal working flow first instead of overplanning everything. Once a basic system starts working, discussions become much more concrete and iteration becomes faster.
-Hackathons taught me that in uncertain environments, momentum and rapid feedback loops matter more than waiting for perfect clarity before starting.
+Hackathons and Competitions
 
+Harshita has actively participated in hackathons and enjoys building under pressure. Her two most impactful hackathon experiences were Innerve 9.0 and Smart India Hackathon 2025, where she led the team in both.
 
-Innerve 9.0 — Skylink (Team Lead + AI/ML Role)
-At Innerve 9.0, our team built Skylink, a real-time in-flight communication platform designed to improve passenger interaction before, during, and shortly after flights.
-The main idea was that air travel often feels isolated, and passengers usually don’t have any simple way to communicate with others on the same flight, receive collaborative updates, or interact during delays or waiting periods. So we built a system where passengers could join flight-based chatrooms, receive live updates, and even communicate in low-connectivity scenarios.
-The platform had two main communication modes:
-Online real-time chatrooms using Supabase real-time features
-Offline peer-to-peer messaging using local network/WebRTC-based communication
-We also added privacy-focused nickname-based access instead of exposing personal details.
-My role in the team was mainly focused on the AI/ML side, and I was also leading the team overall. One of the things I worked on was the AI moderation pipeline for chat safety using BERT/PyTorch-based moderation approaches to detect offensive or abusive messages inside chats.
-Apart from that, we also integrated Gemini APIs for building a chatbot assistant inside the platform
-Follow-up: Why did you use BERT for moderation?
-Because moderation is more of a classification problem than a generation problem. We needed the system to identify unsafe or offensive content reliably rather than generate responses. Transformer-based classification approaches using BERT-style models were better suited for that use case.
+INNERVE 9.0 — SKYLINK (Team Lead + AI/ML Role)
 
-Follow-up: What was the hardest part technically?
-The hardest part overall was integrating offline communication and online communication inside one chat only.
-Smart India Hackathon 2025 — ZeroGrid (Team Lead + AI/ML Role)
-At Smart India Hackathon 2025, our team built ZeroGrid, a renewable energy orchestration platform for government institutes in Rajasthan.
-The problem statement focused on the fact that many institutes already had renewable infrastructure like solar panels, batteries, and wind systems, but these systems operated independently without intelligent coordination. This caused inefficient energy usage, poor forecasting, and limited optimization.
-Our goal was to create a centralized orchestration platform that could:
-monitor renewable systems in real time
-forecast energy generation and load
-optimize battery usage
-provide AI-generated operational insights
-coordinate energy usage across multiple systems
-The platform combined:
-real-time monitoring dashboards
-WebSocket-based live updates
-forecasting systems
-optimization workflows
-AI-generated insights
-device integrations through MQTT/Modbus-style flows
-My role was mainly focused on the AI/ML and intelligence layer, and I was also leading the team.
-I worked around:
-forecasting workflows
-integrating prediction systems
-AI-generated insight pipelines
-connecting AI outputs with operational decisions
+At Innerve 9.0, Harshita's team built Skylink, a real-time in-flight communication platform designed to improve passenger interaction before, during, and after flights. The core problem was that air travel feels isolated — passengers have no simple way to communicate with others on the same flight, receive collaborative updates, or interact during delays.
 
+The platform had two communication modes:
+- Online real-time chatrooms using Supabase Realtime features
+- Offline peer-to-peer messaging using WebRTC-based local network communication
 
+Additional features: privacy-focused nickname-based access, AI-moderated chat safety, live flight updates, and a Gemini API-powered chatbot assistant inside the platform.
+
+Harshita's role: Team lead and AI/ML side. She built the AI moderation pipeline using BERT/PyTorch-based text classification to detect offensive or abusive messages inside chats. She also worked on ensuring the moderation pipeline integrated without introducing noticeable delays to the real-time chat flow.
+
+Why BERT for moderation: Moderation is a classification problem, not a generation problem. BERT-style transformer models are better suited for reliably identifying unsafe content than generative models.
+
+Hardest technical challenge: Integrating offline peer-to-peer communication and online real-time communication inside the same unified chat interface.
+
+Result: Skylink won the sponsored problem statement by udChalo at Innerve 9.0. This win directly led to Harshita's Software Engineering internship at udChalo.
+
+SMART INDIA HACKATHON 2025 — ZEROGRID (Team Lead + AI/ML Role)
+
+At Smart India Hackathon 2025, Harshita's team built ZeroGrid, a renewable energy orchestration platform for government institutes in Rajasthan. Harshita was the team leader and won the hackathon.
+
+The problem: many institutes had renewable infrastructure (solar panels, batteries, wind systems) but these systems operated independently without intelligent coordination — causing inefficient energy usage, poor forecasting, and limited optimization.
+
+The platform:
+- Real-time energy monitoring dashboards
+- WebSocket-based live updates across all systems
+- Forecasting systems for energy generation and load prediction
+- AI-generated operational insights
+- Battery usage optimization
+- Device integrations through MQTT/Modbus-style flows
+- Coordination across solar, wind, battery, and grid systems
+
+Harshita's role: Team lead and AI/ML intelligence layer. She worked on:
+- Forecasting workflows and integrating prediction systems
+- AI-generated insight pipelines
+- Connecting AI outputs with operational decisions (battery scheduling, energy optimization)
+- Ensuring the ML system was not treated as an isolated module but integrated into the broader orchestration decisions
+
+Hardest technical challenge: Coordinating multiple moving pieces — forecasting systems, real-time WebSocket updates, dashboards, and optimization workflows — within a hackathon timeline.
+
+GENERAL HACKATHON APPROACH
+
+How Harshita divides work as team lead: She assigns ownership of complete workflows rather than isolated tasks. Instead of splitting random pages, she gives teammates ownership of entire flows like authentication, real-time messaging, or AI integration. This reduces coordination confusion and makes debugging easier.
+
+How she handles unclear requirements: She builds a minimal working flow first instead of overplanning. Once a basic system works, discussions become concrete and iteration gets faster. Momentum and rapid feedback loops matter more than waiting for perfect clarity.
+
+Failure mode learned: Overbuilding features too quickly creates integration chaos. Underestimating real-time integration and debugging time — especially with multiple teammates on interconnected systems — caused friction. Lesson: stabilize core workflows before expanding features aggressively.
+
+Fastest technology learned: Real-time communication workflows involving WebSockets and streaming systems — handling live updates, async communication, and synchronization across multiple users and services under time pressure.

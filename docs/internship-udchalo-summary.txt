@@ -1,21 +1,27 @@
-Internship Experience 
-I worked as a Mobile Application Intern at udChalo from May 2025 to August 2025. So udChalo is a private platform designed to offer exclusive travel and lifestyle services to members of the Indian Armed Forces community and their families. I got the opportunity after my team won a sponsored hackathon problem statement by udChalo at Innerve 9.0. During the hackathon, my role was mainly on the ML side, but during the internship I worked primarily on React Native mobile development and production-level UI features.
-During the internship, I worked on reusable UI components like carousel sections, spinning loaders, and parts of the Samsung shopping module inside the app. I also worked on Android 15 (API level 35) migration-related research and compatibility documentation.
-One of the biggest learnings for me was understanding the difference between building fast hackathon prototypes and building maintainable production systems used by a large user base.
-Follow-up: What was the hardest part for you during the internship?
-Initially, the hardest part was understanding and navigating a large production codebase. In personal projects, I usually know where everything exists because I built most of it myself. But in the udChalo app, there were many shared components, nested navigation structures, utility layers, reusable hooks, and existing architecture patterns already being used across the app.
-Sometimes even locating the correct component responsible for a small UI behavior took time. I remember spending a lot of time tracing reusable components and understanding how data and props were flowing through multiple screens. That experience taught me how important code organization and maintainable architecture become at scale.
-Follow-up: Tell me about a difficult bug or learning moment.
-One learning moment I clearly remember was while working on a UI-related component update. I had implemented a quick solution using local state and conditional rendering logic that fixed the issue immediately during testing.
-But during review, my mentor explained that although the fix worked, it wasn’t a scalable production-friendly approach because the component could unnecessarily re-render and become difficult to maintain as the feature grew. He suggested restructuring the logic in a cleaner and more reusable way instead of patching it quickly.
-That was honestly one of the moments where I understood the difference between “hackathon code” and “production code.” In hackathons, you mostly optimize for speed and demo readiness. But in production systems, maintainability, readability, scalability, and long-term reliability matter much more.
-Follow-up: Did you face any debugging challenges?
-Yes, especially around UI inconsistencies across devices and Android versions. I remember one case where a carousel component behaved differently on different screen sizes and devices because of layout calculations and rendering timing issues. The issue was difficult because it wasn’t consistently reproducible on every device.
-That experience taught me to debug more systematically instead of assuming the first visible symptom is the root cause.
-Follow-up: How did you collaborate with the team remotely?
-Most collaboration happened through implementation discussions, reviews, and async communication. Since I was new to the codebase, I learned that asking questions early saves a lot of time later. Whenever I got blocked trying to understand an existing component flow or architecture pattern, discussing it with mentors helped me move much faster.
-Follow-up: How did shipping to 1M+ users change your engineering mindset?
-It made me realize that production engineering is much more about reliability and maintainability than just “making things work.” Small UI issues, rendering inefficiencies, or inconsistent component behavior become much more important when the application is being used by a very large number of users.
-I also became more careful about reusable design patterns, performance, and understanding the impact of even small frontend changes.
-Follow-up: What did you learn from working on production systems?
-The biggest thing I learned was that production systems are heavily dependent on collaboration, consistency, and maintainability. In hackathons, you can hardcode things or move quickly with shortcuts, but in real systems you need to think about reusable architecture, scalability, clean abstractions, and how future developers will work with your code.
+INTERNSHIP: Software Engineering Intern at udChalo
+Duration: May 2025 to August 2025
+Type: Mobile Application Development (React Native)
+How obtained: Team won sponsored problem statement by udChalo at Innerve 9.0 hackathon (Skylink project)
+
+ABOUT UDCHALO:
+udChalo is a private platform offering exclusive travel and lifestyle services to members of the Indian Armed Forces community and their families. The app serves 1M+ users.
+
+WORK DONE:
+- Built reusable UI components including carousel sections, spinning loaders, and parts of the Samsung shopping module inside the production app
+- Worked on Android 15 (API level 35) migration research and compatibility documentation
+- Contributed to production-level React Native features used by 1M+ users
+
+KEY LEARNINGS:
+
+Navigating a large codebase: Initially the hardest part was understanding a large production codebase. Unlike personal projects where Harshita built everything herself, the udChalo app had shared components, nested navigation structures, utility layers, reusable hooks, and existing architecture patterns. Even locating the correct component for a small UI behavior took time. Lesson: code organization and maintainable architecture become critical at scale.
+
+Production code vs hackathon code: During a UI component update, Harshita implemented a quick fix using local state and conditional rendering that worked in testing. During review, her mentor explained the fix was not production-friendly — it would cause unnecessary re-renders and become hard to maintain as the feature grew. Mentor suggested a cleaner, more reusable architecture. This was the moment Harshita understood the difference between hackathon code (optimize for speed and demo readiness) and production code (maintainability, readability, scalability, long-term reliability).
+
+Debugging across devices: A carousel component behaved differently across screen sizes and Android versions due to layout calculations and rendering timing issues. The issue was not consistently reproducible. Lesson: debug systematically, don't assume the first visible symptom is the root cause.
+
+Remote collaboration: Most collaboration happened through implementation discussions, code reviews, and async communication. Asking questions early saves a lot of time. Discussing architecture patterns with mentors when blocked was faster than trying to trace everything alone.
+
+Engineering mindset shift from 1M+ users: Production engineering is about reliability and maintainability, not just making things work. Small UI issues, rendering inefficiencies, or inconsistent component behavior become significant when the app is used by a very large number of users. Became more careful about reusable design patterns, performance, and the impact of even small frontend changes.
+
+INTERNSHIP CONNECTION TO HACKATHON:
+Harshita's team won the udChalo-sponsored problem statement at Innerve 9.0 with Skylink (real-time in-flight communication system). Her role was AI/ML — BERT/PyTorch moderation pipeline. The internship itself was React Native mobile development — a different domain than her hackathon contribution, demonstrating her ability to quickly adapt to a new tech area in a production environment.
