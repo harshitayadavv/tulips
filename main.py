@@ -74,6 +74,19 @@ def is_prompt_injection(text: str) -> bool:
     return bool(INJECTION_RE.search(text))
 
 
+def clean_email(email: str) -> str:
+    """Fix spoken email addresses from STT transcription"""
+    email = email.lower().strip()
+    email = email.replace(" at the rate ", "@")
+    email = email.replace(" at ", "@")
+    email = email.replace(" dot ", ".")
+    email = email.replace(" underscore ", "_")
+    email = email.replace(" hyphen ", "-")
+    email = email.replace(" dash ", "-")
+    email = email.replace(" ", "")
+    return email
+
+
 def groq_complete(messages: list, stream: bool = False):
     try:
         return Groq(api_key=GROQ_API_KEY).chat.completions.create(
@@ -142,6 +155,102 @@ def retrieve_context(query_vector: list[float]) -> str:
     return "\n\n---\n\n".join(chunks)
 
 
+def _fmt_slot(iso: str) -> str:
+    try:
+        dt     = datetime.fromisoformat(iso.replace("Z", "+00:00"))
+        # Convert to IST
+        ist    = dt + timedelta(hours=5, minutes=30)
+        day    = ist.day
+        suffix = {1: "st", 2: "nd", 3: "rd"}.get(
+            day % 10 if day % 100 not in (11, 12, 13) else 0, "th"
+        )
+        return ist.strftime(f"%A %B {day}{suffix} at %I:%M %p IST")
+    except Exception:
+        return iso
+
+
+async def _handle_get_slots(client: httpx.AsyncClient) -> str:
+    try:
+        resp = await client.get(f"{RENDER_URL}/slots", timeout=12.0)
+        resp.raise_for_status()
+        slots = resp.json().get("slots", [])
+        if not slots:
+            return (
+                "There are no available slots in the next 7 days. "
+                "You can reach Harshita directly at harshitayadavv211@gmail.com"
+            )
+        spoken_slots = []
+        for i, s in enumerate(slots[:4], 1):
+            spoken_slots.append(f"Option {i}: {_fmt_slot(s)}")
+        return (
+            "Here are Harshita's available slots: "
+            + ". ".join(spoken_slots)
+            + ". Which one works best for you?"
+        )
+    except httpx.HTTPStatusError as e:
+        return f"I couldn't fetch availability right now. Please try again in a moment."
+    except Exception:
+        return "I had trouble fetching the calendar. Could you try again?"
+
+
+async def _handle_get_answer(client: httpx.AsyncClient, params: dict) -> str:
+    question = params.get("question", "").strip()
+    if not question:
+        return "Could you repeat the question? I didn't catch that."
+    try:
+        resp = await client.post(
+            f"{RENDER_URL}/chat",
+            json={"message": question},
+            timeout=12.0,
+        )
+        resp.raise_for_status()
+        answer = resp.json().get("response", "")
+        return answer or "I don't have that information right now — happy to discuss it on a call!"
+    except Exception:
+        return "Something went wrong on my end. Feel free to ask again!"
+
+
+async def _handle_book_meeting(client: httpx.AsyncClient, params: dict) -> str:
+    caller_name  = params.get("caller_name", "").strip()
+    caller_email = clean_email(params.get("caller_email", "").strip())
+    slot         = params.get("slot", "").strip()
+
+    if not caller_name:
+        return "Could you tell me your full name so I can complete the booking?"
+    if not caller_email or "@" not in caller_email:
+        return "What email address should I send the confirmation to?"
+    if not slot:
+        return "Which time slot would you like to book?"
+
+    try:
+        resp = await client.post(
+            f"{RENDER_URL}/book",
+            json={
+                "name":       caller_name,
+                "email":      caller_email,
+                "start_time": slot,
+                "note":       "Booked via Tulips voice agent",
+            },
+            timeout=15.0,
+        )
+        resp.raise_for_status()
+        return (
+            f"You're all set, {caller_name}! "
+            f"A confirmation email is on its way to {caller_email}. "
+            f"Harshita is looking forward to connecting with you!"
+        )
+    except httpx.HTTPStatusError as e:
+        error_text = e.response.text[:200]
+        if "already has booking" in error_text or "not available" in error_text:
+            return (
+                "That slot was just taken. Let me fetch the updated availability — "
+                "one moment please."
+            )
+        return "I couldn't complete the booking. Please try a different slot or contact Harshita directly."
+    except Exception:
+        return "Something went wrong with the booking. Please try once more."
+
+
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
@@ -162,8 +271,8 @@ def chat(req: ChatRequest):
         return ChatResponse(
             response=(
                 "I'm sorry, but I can't process that kind of request. "
-                "I'm here to answer questions about my professional background. "
-                "Feel free to ask me about my skills, experience, or projects!"
+                "I'm here to answer questions about Harshita's professional background. "
+                "Feel free to ask me about her skills, experience, or projects!"
             )
         )
 
@@ -201,8 +310,8 @@ def chat_stream(req: ChatRequest):
         def injection_gen():
             msg = (
                 "I'm sorry, but I can't process that kind of request. "
-                "I'm here to answer questions about my professional background. "
-                "Feel free to ask me about my skills, experience, or projects!"
+                "I'm here to answer questions about Harshita's professional background. "
+                "Feel free to ask me about her skills, experience, or projects!"
             )
             yield f"data: {msg}\n\n"
             yield "data: [DONE]\n\n"
@@ -332,98 +441,71 @@ def get_available_slots():
 
 @app.post("/vapi-webhook")
 async def vapi_webhook(request: Request):
-    body    = await request.json()
+    body = await request.json()
+
+    # ── Detect Vapi message format ──────────────────────────────────────────
     message = body.get("message", {})
+    msg_type = message.get("type", "")
 
-    if message.get("type") != "function-call":
-        return JSONResponse({"result": "ok"})
+    async with httpx.AsyncClient(timeout=15.0) as client:
 
-    fn     = message.get("functionCall", {})
-    name   = fn.get("name", "")
-    params = fn.get("parameters", {})
+        # ── NEW FORMAT: tool-calls (array) ──────────────────────────────────
+        if msg_type == "tool-calls":
+            tool_calls = message.get("toolCalls", [])
+            results = []
+            for tc in tool_calls:
+                tool_call_id = tc.get("id", "")
+                fn_name      = tc.get("function", {}).get("name", "")
+                params       = tc.get("function", {}).get("arguments", {})
 
-    async with httpx.AsyncClient(timeout=12.0) as client:
+                # arguments may come as a JSON string
+                if isinstance(params, str):
+                    import json
+                    try:
+                        params = json.loads(params)
+                    except Exception:
+                        params = {}
 
-        if name == "get_answer":
-            question = params.get("question", "").strip()
-            if not question:
-                return JSONResponse({"result": "Could you repeat the question? I didn't catch that."})
-            try:
-                resp = await client.post(
-                    f"{RENDER_URL}/chat",
-                    json={"message": question},
-                    timeout=12.0,
-                )
-                resp.raise_for_status()
-                answer = resp.json().get("response", "")
-                if not answer:
-                    answer = "I don't have that information right now — happy to discuss it on a call!"
-            except httpx.HTTPStatusError as e:
-                answer = f"I ran into an issue fetching that answer. Status: {e.response.status_code}."
-            except Exception:
-                answer = "Something went wrong on my end. Feel free to ask again or book a call!"
-            return JSONResponse({"result": answer})
+                if fn_name == "get_slots":
+                    result = await _handle_get_slots(client)
+                elif fn_name == "get_answer":
+                    result = await _handle_get_answer(client, params)
+                elif fn_name == "book_meeting":
+                    result = await _handle_book_meeting(client, params)
+                else:
+                    result = f"I don't know how to handle '{fn_name}'."
 
-        elif name == "get_slots":
-            try:
-                resp = await client.get(f"{RENDER_URL}/slots", timeout=12.0)
-                resp.raise_for_status()
-                slots = resp.json().get("slots", [])
-                if not slots:
-                    return JSONResponse({
-                        "result": "There are no available slots in the next 7 days. You can also reach Harshita directly at her LinkedIn."
-                    })
-                spoken_slots = [_fmt_slot(s) for s in slots[:5]]
-                result = "Harshita has these slots open: " + ", or ".join(spoken_slots) + ". Which works best for you?"
-            except httpx.HTTPStatusError as e:
-                result = f"I couldn't fetch availability right now (status {e.response.status_code}). Would you like to try again?"
-            except Exception:
-                result = "I had trouble fetching the calendar. Could you try again in a moment?"
+                results.append({
+                    "toolCallId": tool_call_id,
+                    "result":     result,
+                })
+
+            return JSONResponse({"results": results})
+
+        # ── OLD FORMAT: function-call (single) ──────────────────────────────
+        elif msg_type == "function-call":
+            fn     = message.get("functionCall", {})
+            name   = fn.get("name", "")
+            params = fn.get("parameters", {})
+
+            if isinstance(params, str):
+                import json
+                try:
+                    params = json.loads(params)
+                except Exception:
+                    params = {}
+
+            if name == "get_slots":
+                result = await _handle_get_slots(client)
+            elif name == "get_answer":
+                result = await _handle_get_answer(client, params)
+            elif name == "book_meeting":
+                result = await _handle_book_meeting(client, params)
+            else:
+                result = f"I don't know how to handle '{name}'."
+
             return JSONResponse({"result": result})
 
-        elif name == "book_meeting":
-            caller_name  = params.get("caller_name", "").strip()
-            caller_email = params.get("caller_email", "").strip()
-            slot         = params.get("slot", "").strip()
-
-            if not caller_name:
-                return JSONResponse({"result": "Could you tell me your full name so I can book the slot?"})
-            if not caller_email:
-                return JSONResponse({"result": "What email should I send the confirmation to?"})
-            if not slot:
-                return JSONResponse({"result": "Which time slot would you like to book?"})
-
-            try:
-                resp = await client.post(
-                    f"{RENDER_URL}/book",
-                    json={
-                        "name":       caller_name,
-                        "email":      caller_email,
-                        "start_time": slot,
-                        "note":       "Booked via Tulips voice agent",
-                    },
-                    timeout=15.0,
-                )
-                resp.raise_for_status()
-                result = (
-                    f"You're all set, {caller_name}! Your call with Harshita is confirmed. "
-                    f"A confirmation will be sent to {caller_email}. Looking forward to connecting!"
-                )
-            except httpx.HTTPStatusError as e:
-                result = f"I couldn't complete the booking — {e.response.text[:200]}. Please try again or contact Harshita directly."
-            except Exception:
-                result = "Something went wrong with the booking. Please try once more or contact Harshita directly."
-            return JSONResponse({"result": result})
-
+        # ── Any other event (status-update, end-of-call, etc.) ──────────────
         else:
-            return JSONResponse({"result": f"I don't know how to handle '{name}' yet."})
-
-
-def _fmt_slot(iso: str) -> str:
-    try:
-        dt     = datetime.fromisoformat(iso.replace("Z", "+00:00"))
-        day    = dt.day
-        suffix = {1: "st", 2: "nd", 3: "rd"}.get(day % 10 if day % 100 not in (11, 12, 13) else 0, "th")
-        return dt.strftime(f"%B {day}{suffix} at %-I:%M %p UTC")
-    except Exception:
-        return iso
+            return JSONResponse({"result": "ok"})
