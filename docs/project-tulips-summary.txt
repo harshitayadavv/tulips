@@ -1,0 +1,82 @@
+PROJECT: Tulips (AI Persona System)
+GitHub: https://github.com/harshitayadavv/tulips (Scaler AI Engineer Screening Assignment)
+Live Backend: https://tulips-s84n.onrender.com
+Live Chat: Deployed frontend on Vercel
+Voice Agent Phone: +12542610169
+
+WHAT IT IS:
+Tulips is a full-stack AI persona system built by Harshita Yadav for the Scaler AI Engineer Intern screening assignment. It lets anyone chat with or call an AI that represents Harshita — answering questions about her background, skills, and projects using RAG, and autonomously booking interviews on her real Cal.com calendar.
+
+THE SYSTEM HAS THREE PARTS:
+
+PART A — VOICE AGENT:
+- Built on Vapi.ai with Groq (llama-3.3-70b-versatile) as the LLM
+- Deepgram nova-2 for speech-to-text, Deepgram aura-asteria-en for text-to-speech
+- Three custom tools: get_answer (RAG-powered), get_slots (Cal.com availability), book_meeting (Cal.com booking)
+- Webhook at /vapi-webhook on the FastAPI backend routes all tool calls
+- Phone number: +12542610169 (US number via Vapi free tier)
+- Target latency: <2s on non-tool turns, <3s on tool turns
+
+PART B — CHAT INTERFACE:
+- RAG pipeline: Gemini embedding-2 (3072 dimensions) → Qdrant vector DB → Groq LLM
+- Knowledge base ingested from docs/: resume PDF, project summaries, hackathon summaries, internship notes
+- Prompt injection detection with regex patterns
+- Streaming endpoint /chat/stream for the frontend, /chat for the voice agent
+- Booking directly from chat via /book endpoint (Cal.com v2 API)
+
+TECH STACK:
+- Backend: FastAPI (Python), deployed on Render
+- LLM: Groq API (llama-3.3-70b-versatile) — chosen for free tier + ultra-low latency
+- Embeddings: Google Gemini embedding-2 (3072 dim) via google-genai SDK v1 endpoint
+- Vector DB: Qdrant (cloud) — cosine similarity, TOP_K=5 retrieval
+- Voice: Vapi.ai + Deepgram (STT + TTS)
+- Calendar: Cal.com v2 API (eventTypeSlug: "30min", cal-api-version headers differ per endpoint)
+- Frontend: Next.js + Tailwind CSS, components: ChatWindow.tsx, BookingModal.tsx
+- Deployment: Render (backend) + Vercel (frontend)
+
+BACKEND ENDPOINTS:
+- POST /chat — RAG-powered chat (non-streaming)
+- POST /chat/stream — Server-sent events streaming chat
+- POST /book — Book a meeting via Cal.com v2
+- GET /slots — Fetch available slots (next 7 days) via Cal.com v2
+- POST /vapi-webhook — Vapi function-call handler
+- GET /health — Health check
+- GET /ping — UptimeRobot keepalive (prevents Render cold starts)
+
+ARCHITECTURE FLOW:
+1. User message → embed with Gemini embedding-2 (3072d)
+2. Query Qdrant (cosine similarity, top 5 chunks)
+3. Inject retrieved context into system prompt
+4. Send to Groq (llama-3.3-70b-versatile) for generation
+5. Return response
+
+INGESTION PIPELINE (ingest.py):
+- Reads .txt and .pdf from docs/
+- Chunks by ~500 tokens with 50-token overlap
+- Embeds with Gemini embedding-2 (RETRIEVAL_DOCUMENT task type)
+- Upserts to Qdrant collection "persona" (3072 dim, cosine distance)
+
+CAL.COM v2 INTEGRATION (critical details):
+- Auth: "Authorization: Bearer YOUR_KEY" header (NOT ?apiKey= query param)
+- Slots endpoint: cal-api-version: 2024-09-04, params: start/end (NOT startTime/endTime), eventTypeSlug
+- Bookings endpoint: cal-api-version: 2024-08-13, body uses "attendee" object with name/email/timeZone/language
+- v1 API is dead (410 Gone) — only v2 works
+
+DESIGN TRADEOFFS:
+- Chose Groq over OpenAI for the LLM: 10x faster inference (target <500ms TTFT) at zero cost, traded off model sophistication.
+- Chose Gemini embedding-2 (3072d) over text-embedding-004 (768d): higher dimensional embeddings improve retrieval precision on a small corpus, at the cost of larger Qdrant storage and slightly slower embedding calls.
+- Non-streaming for voice (/chat) vs streaming for chat (/chat/stream): voice needs a complete sentence before TTS can start, so streaming adds complexity with no benefit for the voice path.
+- Qdrant cloud free tier vs self-hosted: accepted vendor dependency for zero infrastructure management burden.
+- responseDelaySeconds: 0 in Vapi config: eliminates artificial padding for minimum latency, accepted tradeoff of slightly less "thinking time" appearance.
+
+FAILURE MODES DISCOVERED:
+1. Cal.com v1 returning 410 Gone — fixed by migrating all endpoints to v2 with correct version headers.
+2. Gemini embedding model 404 on v1beta endpoint — fixed by forcing http_options={"api_version": "v1"} in google-genai client config.
+3. Render cold starts adding 5-10s to first voice call — fixed by adding /ping endpoint + UptimeRobot monitor on 5-minute interval.
+
+WHAT HARSHITA WOULD BUILD WITH 2 MORE WEEKS:
+- Ingest GitHub commit history and README files into the RAG corpus for deeper technical answers.
+- Add an eval harness: golden Q&A set, automated judge model scoring (GPT-4 as judge), hallucination rate measurement.
+- Implement conversation memory across turns in the voice agent using Vapi's call metadata.
+- Add a Twilio Indian number so Indian recruiters can call directly without VoIP.
+- Build a latency dashboard showing per-component breakdown (STT/LLM/TTS/tool) across all calls.

@@ -1,0 +1,39 @@
+HARSHITA YADAV — GITHUB PROFILE SUMMARY
+GitHub: https://github.com/harshitayadavv
+Total Public Repositories: 28
+Location: Gurugram, India (studies at IIIT Kota)
+
+PINNED / KEY REPOSITORIES:
+1. Portfolio — JavaScript, personal portfolio at harshitayadav-portfolio.vercel.app
+2. WordSmith — Python + JavaScript, AI Chrome extension for text transformation
+3. warroom — TypeScript, full-stack application
+4. SkyRacer — JavaScript + Python, AI gesture/voice controlled game
+5. Return0 (Skylink) — JavaScript, real-time in-flight communication system (Innverve 9.0 hackathon)
+6. OutreachX — Python, AI outreach automation
+7. Tulips — Python + TypeScript, AI persona system (Scaler assignment — current project)
+
+COMPETITIVE PROGRAMMING PROFILES:
+- LeetCode: leetcode.com/hersheyyys — 800+ problems solved
+- CodeChef: codechef.com/users/harshitaydv21
+- Codeforces: codeforces.com/profile/hersheyyys
+
+FULL TECH STACK:
+Frontend: HTML, CSS, JavaScript, TypeScript, React.js, React Native, Next.js, Tailwind CSS, Vite, Chrome Extensions (Manifest V3)
+Backend: FastAPI, Flask, Express.js, Node.js, WebSockets
+Databases: MongoDB (Atlas), PostgreSQL, SQLite, Qdrant (vector DB)
+AI/ML: Python, PyTorch, Keras, TensorFlow, OpenCV, MediaPipe, Pandas, NumPy, Scikit-learn, Matplotlib, Seaborn
+AI Systems: LangGraph, RAG Systems, LLM Applications, AI Agents, Groq API, Gemini API, Qdrant
+DevOps: Docker, docker-compose, Git, Linux, Vercel, Render
+Other: JWT Auth, Google OAuth 2.0, REST APIs, WebSockets, System Design, OOP, DBMS, OS
+
+MOST RELEVANT TO SCALER AI ENGINEER ROLE:
+Harshita has built production AI systems including:
+- A full RAG pipeline (embed → vector search → LLM generation) for the Tulips persona project
+- An AI voice agent with real-time tool calling (Vapi + Groq + Deepgram + Cal.com)
+- An AI text transformation app (WordSmith — Groq + FastAPI + Chrome Extension)
+- An AI gesture/voice game (SkyRacer — MediaPipe + WebSockets + FastAPI)
+- LLM application development with streaming responses
+- Prompt injection detection and safety measures
+- Cal.com v2 API integration for autonomous calendar booking
+
+She is currently learning Agentic AI and LangGraph, making her directly relevant to Scaler's AI product work.

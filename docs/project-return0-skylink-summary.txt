@@ -1,0 +1,22 @@
+PROJECT: Return0 (Skylink)
+GitHub: https://github.com/harshitayadavv/Return0
+Language: JavaScript
+
+WHAT IT IS:
+Return0, subtitled "Skylink", was Harshita Yadav's submission for the Innverve 9.0 Hackathon by AIT Pune. It is a real-time in-flight communication system — think a communication platform designed specifically for aircraft passengers and crew.
+
+FEATURES:
+- Real-time communication with live updates
+- AI-moderated chat (automated content moderation)
+- Offline messaging support (messages delivered when connectivity resumes)
+- Secure interactions
+
+CONTEXT:
+This was a hackathon project built under time constraints for Innverve 9.0, organized by AIT Pune. It demonstrates Harshita's ability to rapidly prototype and deploy real-world communication systems with AI integration.
+
+TECH STACK:
+- Primary language: JavaScript
+- Real-time features suggest WebSocket or similar technology
+- AI moderation layer integrated into chat
+
+NOTE: This project has 2 forks on GitHub, indicating community interest. For deeper technical questions about architecture or implementation details, Harshita would be happy to discuss on a call.

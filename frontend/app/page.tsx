@@ -51,13 +51,8 @@ export default function HomePage() {
               <TulipMark size={30} />
             </div>
             <div>
-              <div style={{ fontFamily: 'var(--font-display)' }}
-                className="text-xl font-semibold tracking-wide leading-none"
-                style2={{ color: '#e8f0eb', fontFamily: 'var(--font-display)' }}>
-                <span className="text-[#e8f0eb]" style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', fontWeight: 600, letterSpacing: '0.05em' }}>
-                  tulips
-                </span>
-              </div>
+              <div style={{ fontFamily: 'var(--font-display)', color: '#e8f0eb' }}
+              className="text-xl font-semibold tracking-wide leading-none"></div>
               <div className="text-[10px] font-mono text-[#4a6055] tracking-widest uppercase mt-0.5">
                 AI · Representative
               </div>
