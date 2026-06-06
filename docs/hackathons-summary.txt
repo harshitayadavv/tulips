@@ -27,8 +27,6 @@ Follow-up: How do you handle unclear requirements?
 I usually try to reduce ambiguity by building a minimal working flow first instead of overplanning everything. Once a basic system starts working, discussions become much more concrete and iteration becomes faster.
 Hackathons taught me that in uncertain environments, momentum and rapid feedback loops matter more than waiting for perfect clarity before starting.
 
-Q. “Difference between authentication and authorization?”Authentication verifies who the user is, while authorization determines what the authenticated user is allowed to access or perform.
-
 
 Innerve 9.0 — Skylink (Team Lead + AI/ML Role)
 At Innerve 9.0, our team built Skylink, a real-time in-flight communication platform designed to improve passenger interaction before, during, and shortly after flights.
@@ -66,3 +64,21 @@ forecasting workflows
 integrating prediction systems
 AI-generated insight pipelines
 connecting AI outputs with operational decisions
+
+
+Skylink — Tech Stack:
+Frontend: React.js
+Backend: Node.js / Express.js
+Real-time: Supabase Realtime (online), WebRTC (offline peer-to-peer)
+AI/ML: PyTorch, BERT-based text classification for content moderation
+Chatbot: Gemini API
+Privacy: Nickname-based access (no personal data exposed)
+Deployment: Hackathon demo environment
+
+ZeroGrid — Tech Stack:
+Frontend: React.js with real-time dashboards
+Backend: Node.js / FastAPI
+Real-time: WebSockets for live energy monitoring updates
+Device Integration: MQTT/Modbus-style flows
+AI/ML: Forecasting models, predictive pipelines, AI-generated insight generation
+Data: Energy monitoring across solar, wind, battery, grid systems
