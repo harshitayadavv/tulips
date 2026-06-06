@@ -4,6 +4,8 @@ LinkedIn: https://linkedin.com/in/harshitayadav504
 Email: harshitayadav211@gmail.com
 Portfolio: https://harshitayadav-portfolio.vercel.app
 Location: Gurugram, India (studies at IIIT Kota)
+SPOKEN LANGUAGES: English and Hindi
+PROGRAMMING LANGUAGES (only these are languages): C++, Python, JavaScript, TypeScript
 
 EDUCATION:
 B.Tech in Electronics and Communication Engineering, IIIT Kota (2023-2027)
