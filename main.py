@@ -25,7 +25,6 @@ CALCOM_API_KEY       = os.environ["CALCOM_API_KEY"]
 CALCOM_USERNAME      = os.environ["CALCOM_USERNAME"]
 GROQ_API_KEY         = os.environ["GROQ_API_KEY"]
 GROQ_API_KEY_BACKUP  = os.environ.get("GROQ_API_KEY_BACKUP", "")
-RENDER_URL           = os.environ.get("RENDER_URL", "").rstrip("/")
 
 gemini_client = genai.Client(
     api_key=GEMINI_API_KEY,
@@ -108,6 +107,19 @@ def groq_complete(messages: list, stream: bool = False):
         )
 
 
+def _fmt_slot(iso: str) -> str:
+    try:
+        dt     = datetime.fromisoformat(iso.replace("Z", "+00:00"))
+        ist    = dt + timedelta(hours=5, minutes=30)
+        day    = ist.day
+        suffix = {1: "st", 2: "nd", 3: "rd"}.get(
+            day % 10 if day % 100 not in (11, 12, 13) else 0, "th"
+        )
+        return ist.strftime(f"%A %B {day}{suffix} at %I:%M %p IST")
+    except Exception:
+        return iso
+
+
 class ChatRequest(BaseModel):
     message: str
 
@@ -155,41 +167,57 @@ def retrieve_context(query_vector: list[float]) -> str:
     return "\n\n---\n\n".join(chunks)
 
 
-def _fmt_slot(iso: str) -> str:
-    try:
-        dt     = datetime.fromisoformat(iso.replace("Z", "+00:00"))
-        ist    = dt + timedelta(hours=5, minutes=30)
-        day    = ist.day
-        suffix = {1: "st", 2: "nd", 3: "rd"}.get(
-            day % 10 if day % 100 not in (11, 12, 13) else 0, "th"
-        )
-        return ist.strftime(f"%A %B {day}{suffix} at %I:%M %p IST")
-    except Exception:
-        return iso
-
+# ── Vapi tool handlers — call Cal.com directly, never self-call ───────────────
 
 async def _handle_get_slots(client: httpx.AsyncClient) -> str:
+    now       = datetime.now(timezone.utc)
+    date_from = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    date_to   = (now + timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ")
     try:
-        resp = await client.get(f"{RENDER_URL}/slots", timeout=12.0)
+        resp = await client.get(
+            f"{CALCOM_BASE}/slots",
+            headers={
+                "Authorization":   f"Bearer {CALCOM_API_KEY}",
+                "cal-api-version": "2024-09-04",
+            },
+            params={
+                "username":      CALCOM_USERNAME,
+                "eventTypeSlug": EVENT_SLUG,
+                "start":         date_from,
+                "end":           date_to,
+                "timeZone":      "UTC",
+            },
+            timeout=10.0,
+        )
         resp.raise_for_status()
-        slots = resp.json().get("slots", [])
-        if not slots:
+        raw           = resp.json().get("data", {})
+        slots_by_date = raw.get("slots", raw)
+        all_slots     = []
+        for date_key, entries in slots_by_date.items():
+            if not isinstance(entries, list):
+                continue
+            for entry in entries:
+                t = entry.get("start") or entry.get("time", "")
+                if t:
+                    all_slots.append(t)
+
+        if not all_slots:
             return (
                 "There are no available slots in the next 7 days. "
-                "You can reach Harshita directly at harshitayadavv211@gmail.com"
+                "You can reach Harshita at harshitayadavv211@gmail.com"
             )
-        spoken_slots = []
-        for i, s in enumerate(slots[:4], 1):
-            spoken_slots.append(f"Option {i}: {_fmt_slot(s)}")
+
+        spoken = []
+        for i, s in enumerate(all_slots[:4], 1):
+            spoken.append(f"Option {i}: {_fmt_slot(s)}")
+
         return (
             "Here are Harshita's available slots: "
-            + ". ".join(spoken_slots)
+            + ". ".join(spoken)
             + ". Which one works best for you?"
         )
-    except httpx.HTTPStatusError:
-        return "I couldn't fetch availability right now. Please try again in a moment."
     except Exception:
-        return "I had trouble fetching the calendar. Could you try again?"
+        return "I had trouble fetching the calendar. Could you try again in a moment?"
 
 
 async def _handle_get_answer(client: httpx.AsyncClient, params: dict) -> str:
@@ -197,22 +225,19 @@ async def _handle_get_answer(client: httpx.AsyncClient, params: dict) -> str:
     if not question:
         return "Could you repeat that please?"
     try:
-        resp = await client.post(
-            f"{RENDER_URL}/chat",
-            json={"message": question},
-            timeout=8.0,
-        )
-        resp.raise_for_status()
-        answer = resp.json().get("response", "")
-        if not answer:
-            return "I don't have that detail right now."
-        if len(answer) > 300:
-            answer = answer[:300].rsplit(" ", 1)[0] + "."
+        query_vector = embed_query(question)
+        context      = retrieve_context(query_vector)
+        system_prompt = inject_context(BASE_SYSTEM_PROMPT, context)
+        completion = groq_complete([
+            {"role": "system", "content": system_prompt},
+            {"role": "user",   "content": question},
+        ])
+        answer = completion.choices[0].message.content.strip()
+        if len(answer) > 400:
+            answer = answer[:400].rsplit(" ", 1)[0] + "."
         return answer
-    except httpx.TimeoutException:
-        return "I'm having trouble fetching that right now. Could you ask again?"
     except Exception:
-        return "I don't have that detail right now. Want me to book a call with Harshita?"
+        return "I don't have that detail right now."
 
 
 async def _handle_book_meeting(client: httpx.AsyncClient, params: dict) -> str:
@@ -227,34 +252,45 @@ async def _handle_book_meeting(client: httpx.AsyncClient, params: dict) -> str:
     if not slot:
         return "Which time slot would you like to book?"
 
+    payload = {
+        "username":      CALCOM_USERNAME,
+        "eventTypeSlug": EVENT_SLUG,
+        "start":         slot,
+        "attendee": {
+            "name":     caller_name,
+            "email":    caller_email,
+            "timeZone": "Asia/Kolkata",
+            "language": "en",
+        },
+        "metadata": {"note": "Booked via Tulips voice agent"},
+    }
+
     try:
         resp = await client.post(
-            f"{RENDER_URL}/book",
-            json={
-                "name":       caller_name,
-                "email":      caller_email,
-                "start_time": slot,
-                "note":       "Booked via Tulips voice agent",
+            f"{CALCOM_BASE}/bookings",
+            json=payload,
+            headers={
+                "Authorization":   f"Bearer {CALCOM_API_KEY}",
+                "cal-api-version": "2024-08-13",
+                "Content-Type":    "application/json",
             },
             timeout=15.0,
         )
         resp.raise_for_status()
         return (
             f"You're all set, {caller_name}! Your meeting with Harshita is confirmed. "
-            f"A confirmation email will be sent to {caller_email} shortly. "
-            f"Harshita will also receive a notification on her end."
+            f"A confirmation email will be sent to {caller_email} shortly."
         )
     except httpx.HTTPStatusError as e:
-        error_text = e.response.text[:200]
-        if "already has booking" in error_text or "not available" in error_text:
-            return (
-                "That slot was just taken. Let me fetch the updated availability — "
-                "one moment please."
-            )
+        err = e.response.text[:200]
+        if "already" in err.lower() or "not available" in err.lower():
+            return "That slot was just taken. Let me fetch updated availability — one moment."
         return "I couldn't complete the booking. Please try a different slot or contact Harshita directly."
     except Exception:
         return "Something went wrong with the booking. Please try once more."
 
+
+# ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @app.get("/health")
 def health_check():
@@ -361,7 +397,7 @@ def book_meeting(req: BookRequest):
         "attendee": {
             "name":     req.name,
             "email":    req.email,
-            "timeZone": "UTC",
+            "timeZone": "Asia/Kolkata",
             "language": "en",
         },
         "metadata": {"note": req.note or ""},
@@ -459,7 +495,6 @@ async def vapi_webhook(request: Request):
                 tool_call_id = tc.get("id", "")
                 fn_name      = tc.get("function", {}).get("name", "")
                 params       = tc.get("function", {}).get("arguments", {})
-
                 if isinstance(params, str):
                     try:
                         params = json.loads(params)
@@ -473,12 +508,9 @@ async def vapi_webhook(request: Request):
                 elif fn_name == "book_meeting":
                     result = await _handle_book_meeting(client, params)
                 else:
-                    result = f"I don't know how to handle '{fn_name}'."
+                    result = f"Unknown tool: {fn_name}"
 
-                results.append({
-                    "toolCallId": tool_call_id,
-                    "result":     result,
-                })
+                results.append({"toolCallId": tool_call_id, "result": result})
 
             return JSONResponse({"results": results})
 
@@ -486,7 +518,6 @@ async def vapi_webhook(request: Request):
             fn     = message.get("functionCall", {})
             name   = fn.get("name", "")
             params = fn.get("parameters", {})
-
             if isinstance(params, str):
                 try:
                     params = json.loads(params)
@@ -500,7 +531,7 @@ async def vapi_webhook(request: Request):
             elif name == "book_meeting":
                 result = await _handle_book_meeting(client, params)
             else:
-                result = f"I don't know how to handle '{name}'."
+                result = f"Unknown tool: {name}"
 
             return JSONResponse({"result": result})
 
