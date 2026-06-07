@@ -262,7 +262,7 @@ def health_check():
     return {"status": "ok"}
 
 
-@app.get("/ping")
+@app.api_route("/ping", methods=["GET", "HEAD"])
 def ping():
     return {"pong": True}
 
