@@ -1,5 +1,6 @@
 import os
 import re
+import json
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
@@ -75,7 +76,6 @@ def is_prompt_injection(text: str) -> bool:
 
 
 def clean_email(email: str) -> str:
-    """Fix spoken email addresses from STT transcription"""
     email = email.lower().strip()
     email = email.replace(" at the rate ", "@")
     email = email.replace(" at ", "@")
@@ -158,7 +158,6 @@ def retrieve_context(query_vector: list[float]) -> str:
 def _fmt_slot(iso: str) -> str:
     try:
         dt     = datetime.fromisoformat(iso.replace("Z", "+00:00"))
-        # Convert to IST
         ist    = dt + timedelta(hours=5, minutes=30)
         day    = ist.day
         suffix = {1: "st", 2: "nd", 3: "rd"}.get(
@@ -187,8 +186,8 @@ async def _handle_get_slots(client: httpx.AsyncClient) -> str:
             + ". ".join(spoken_slots)
             + ". Which one works best for you?"
         )
-    except httpx.HTTPStatusError as e:
-        return f"I couldn't fetch availability right now. Please try again in a moment."
+    except httpx.HTTPStatusError:
+        return "I couldn't fetch availability right now. Please try again in a moment."
     except Exception:
         return "I had trouble fetching the calendar. Could you try again?"
 
@@ -201,20 +200,20 @@ async def _handle_get_answer(client: httpx.AsyncClient, params: dict) -> str:
         resp = await client.post(
             f"{RENDER_URL}/chat",
             json={"message": question},
-            timeout=8.0,  # ← reduced so Vapi doesn't retry
+            timeout=8.0,
         )
         resp.raise_for_status()
         answer = resp.json().get("response", "")
         if not answer:
             return "I don't have that detail right now."
-        # Truncate for voice — max 200 chars
         if len(answer) > 300:
             answer = answer[:300].rsplit(" ", 1)[0] + "."
         return answer
     except httpx.TimeoutException:
         return "I'm having trouble fetching that right now. Could you ask again?"
-    except Exception as e:
+    except Exception:
         return "I don't have that detail right now. Want me to book a call with Harshita?"
+
 
 async def _handle_book_meeting(client: httpx.AsyncClient, params: dict) -> str:
     caller_name  = params.get("caller_name", "").strip()
@@ -241,9 +240,9 @@ async def _handle_book_meeting(client: httpx.AsyncClient, params: dict) -> str:
         )
         resp.raise_for_status()
         return (
-            f"You're all set, {caller_name}! "
-            f"A confirmation email is on its way to {caller_email}. "
-            f"Harshita is looking forward to connecting with you!"
+            f"You're all set, {caller_name}! Your meeting with Harshita is confirmed. "
+            f"A confirmation email will be sent to {caller_email} shortly. "
+            f"Harshita will also receive a notification on her end."
         )
     except httpx.HTTPStatusError as e:
         error_text = e.response.text[:200]
@@ -447,15 +446,12 @@ def get_available_slots():
 
 @app.post("/vapi-webhook")
 async def vapi_webhook(request: Request):
-    body = await request.json()
-
-    # ── Detect Vapi message format ──────────────────────────────────────────
-    message = body.get("message", {})
+    body     = await request.json()
+    message  = body.get("message", {})
     msg_type = message.get("type", "")
 
     async with httpx.AsyncClient(timeout=15.0) as client:
 
-        # ── NEW FORMAT: tool-calls (array) ──────────────────────────────────
         if msg_type == "tool-calls":
             tool_calls = message.get("toolCalls", [])
             results = []
@@ -464,9 +460,7 @@ async def vapi_webhook(request: Request):
                 fn_name      = tc.get("function", {}).get("name", "")
                 params       = tc.get("function", {}).get("arguments", {})
 
-                # arguments may come as a JSON string
                 if isinstance(params, str):
-                    import json
                     try:
                         params = json.loads(params)
                     except Exception:
@@ -488,14 +482,12 @@ async def vapi_webhook(request: Request):
 
             return JSONResponse({"results": results})
 
-        # ── OLD FORMAT: function-call (single) ──────────────────────────────
         elif msg_type == "function-call":
             fn     = message.get("functionCall", {})
             name   = fn.get("name", "")
             params = fn.get("parameters", {})
 
             if isinstance(params, str):
-                import json
                 try:
                     params = json.loads(params)
                 except Exception:
@@ -512,6 +504,5 @@ async def vapi_webhook(request: Request):
 
             return JSONResponse({"result": result})
 
-        # ── Any other event (status-update, end-of-call, etc.) ──────────────
         else:
             return JSONResponse({"result": "ok"})
