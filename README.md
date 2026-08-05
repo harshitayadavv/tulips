@@ -2,8 +2,6 @@
 
 > An AI-powered voice + chat agent that represents Harshita Yadav, answers questions about her background, and books interviews — fully autonomous, no human in the loop.
 
-Built for the Scaler AI Engineer Screening Assignment.
-
 ---
 
 # 🔗 Live Links
