@@ -385,15 +385,6 @@ Configured build-time environment variables in Vercel.
 
 ---
 
-# 🔮 What I'd Build With 2 More Weeks
-
-1. Redis-backed conversation memory
-2. Automatic GitHub repository synchronization
-3. Sentiment-aware tone adaptation
-4. Shared streaming infrastructure across voice and chat
-5. Advanced reranking for retrieval quality
-
----
 
 # 👩‍💻 Built By
 
@@ -404,9 +395,3 @@ Email: [harshitayadavv211@gmail.com](mailto:harshitayadavv211@gmail.com)
 GitHub: https://github.com/harshitayadavv
 
 LinkedIn: https://www.linkedin.com/in/harshita-yadav-6b287b296
-
----
-
-Keep all services active for at least 7 days after submission.
-
-Scaler reviewers may interact with both the voice and chat interfaces without prior notice.
